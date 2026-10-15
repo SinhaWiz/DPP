@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  BlockListSchema, DropResultSchema, ErrorSchema, LabStatusSchema, MineResultSchema, MiningStateSchema, ProductListSchema, ProductSchema,
+  BalanceListSchema, BlockListSchema, DropResultSchema, ErrorSchema, LabStatusSchema, MineResultSchema, MiningStateSchema, ProductListSchema, ProductSchema,
   ProductTrailSchema, RecordDetailSchema, RecordListSchema, ReplaceResultSchema, RestoreResultSchema, ResetResultSchema,
   ScenarioListSchema, ScenarioRunSchema, SessionSchema, SnapshotListSchema, SnapshotSchema, StorageRecordSchema, TamperListSchema,
   TamperResultSchema, TimeResultSchema, TxDetailSchema, TxListSchema, UndoAllSchema, VerifySchema,
@@ -77,6 +77,7 @@ export function createApi(baseUrl = "", fetchImpl: Fetch = (...a) => fetch(...a)
     tx: (hash: string) => get(`/api/txs/${hash}`, TxDetailSchema),
     blocks: (q: { from?: number; to?: number } = {}) => get(`/api/blocks${qs(q)}`, BlockListSchema),
     verify: () => get("/api/verify", VerifySchema),
+    balances: () => get("/api/balances", BalanceListSchema),
     storageRecord: (index: string | number) => get(`/api/storage/records/${index}`, StorageRecordSchema),
 
     lab: {

@@ -85,12 +85,17 @@ export function fakeApi(over: Record<string, unknown> = {}) {
     txs: vi.fn(async () => ({ total: 0, txs: [] })),
     blocks: vi.fn(async () => ({ blocks: [] })),
     verify: vi.fn(async () => verifyOk),
+    balances: vi.fn(async () => ({
+      balances: ROLES.map((r) => ({ address: r.address, name: r.name, withdrawable: "0", balance: (100n * 10n ** 18n).toString() })),
+      contractBalance: "0",
+    })),
     lab: {
       status: vi.fn(async (): Promise<{ mining: { mode: "auto" | "manual" | "interval"; automine: boolean; intervalMs: number | null }; clients: number }> => ({
         mining: { mode: "auto", automine: true, intervalMs: null }, clients: 1,
       })),
       setMining: vi.fn(async (mode: "auto" | "manual" | "interval", intervalMs?: number) => ({ mode, automine: mode === "auto", intervalMs: mode === "interval" ? (intervalMs ?? 3000) : null })),
       mine: vi.fn(async (blocks = 1) => ({ mined: blocks, headBlock: 10 })),
+      increaseTime: vi.fn(async (seconds: number) => ({ timestamp: 1_800_000_000 + seconds })),
       runScenario: vi.fn(async (name: string) => ({ name, steps: [] as string[], result: {} as Record<string, unknown> })),
       dropTx: vi.fn(async (hash: string) => ({ hash, dropped: true as const })),
       replaceTx: vi.fn(async (hash: string, mode: "cancel" | "speedUp") => ({ original: hash, replacement: "0x" + "ee".repeat(32), mode })),

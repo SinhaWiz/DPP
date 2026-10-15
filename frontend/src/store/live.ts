@@ -1,7 +1,7 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
-import type { ApiBlock, ApiMiningState, ApiProduct, ApiRecord, ApiRecordDetail, ApiSession, ApiTx, ApiVerify, WsHello, WsMessage } from "@dpp/shared";
+import type { ApiBalances, ApiBlock, ApiMiningState, ApiProduct, ApiRecord, ApiRecordDetail, ApiSession, ApiTx, ApiVerify, WsHello, WsMessage } from "@dpp/shared";
 import { ApiError, type Api } from "@/api/client";
 import { LiveSocket, defaultSocketUrl, type SocketStatus } from "@/api/socket";
 
@@ -27,6 +27,8 @@ export interface LiveState {
   txsTotal: number;
   blocks: ApiBlock[];
   verify: ApiVerify | null;
+  /** Who has money waiting to be withdrawn (pull payments), and what the contract holds. */
+  balances: ApiBalances | null;
   /** How the chain is being mined; null when the lab is not available. */
   mining: ApiMiningState | null;
   scenario: ScenarioProgress | null;
@@ -36,10 +38,10 @@ export interface LiveState {
 
 const INITIAL: LiveState = {
   link: "connecting", error: null, loaded: false, session: null, records: [], recordsTotal: 0, products: [], txs: [], txsTotal: 0,
-  blocks: [], verify: null, mining: null, scenario: null, lastMessage: null,
+  blocks: [], verify: null, balances: null, mining: null, scenario: null, lastMessage: null,
 };
 
-type Kind = "session" | "records" | "recordsFull" | "products" | "txs" | "blocks" | "verify" | "mining";
+type Kind = "session" | "records" | "recordsFull" | "products" | "txs" | "blocks" | "verify" | "mining" | "balances";
 
 const PAGE = 500;
 
@@ -137,7 +139,7 @@ export class LiveController {
 
   /** Reloads every collection. Used at start-up, after a reset or rewind, and when history was lost. */
   async refetchAll(): Promise<void> {
-    await this.load(["session", "recordsFull", "products", "txs", "blocks", "verify"]);
+    await this.load(["session", "recordsFull", "products", "txs", "blocks", "verify", "balances"]);
   }
 
   private async load(kinds: Kind[]): Promise<void> {
@@ -152,6 +154,7 @@ export class LiveController {
       if (wants.has("txs")) tasks.push(api.txs({ limit: 200 }).then((r) => this.set({ txs: r.txs, txsTotal: r.total })));
       if (wants.has("blocks")) tasks.push(api.blocks().then((r) => this.set({ blocks: r.blocks })));
       if (wants.has("verify")) tasks.push(api.verify().then((verify) => this.set({ verify })));
+      if (wants.has("balances")) tasks.push(api.balances().then((balances) => this.set({ balances })));
       await Promise.all(tasks);
       if (wants.has("session") || wants.has("mining")) await this.loadMining();
       this.set({ link: this.socket?.state === "closed" ? "offline" : "live", error: null, loaded: true });
@@ -217,21 +220,22 @@ export class LiveController {
     switch (m.type) {
       case "block.new":
         return this.mark("blocks", "session");
-      case "tx.pending":
       case "tx.mined":
       case "tx.failed":
+        return this.mark("txs", "balances");
+      case "tx.pending":
       case "tx.replaced":
       case "tx.dropped":
         return this.mark("txs");
       case "record.appended":
-        return this.mark("records", "products", "session", "verify");
+        return this.mark("records", "products", "session", "verify", "balances");
       case "verification.changed":
       case "lab.tampered":
       case "lab.restored":
-        return this.mark("recordsFull", "verify", "products");
+        return this.mark("recordsFull", "verify", "products", "balances");
       case "chain.rewound":
       case "chain.reset":
-        return this.mark("session", "recordsFull", "products", "txs", "blocks", "verify");
+        return this.mark("session", "recordsFull", "products", "txs", "blocks", "verify", "balances");
       case "mining.changed":
         this.set({ mining: m.data as ApiMiningState });
         return this.mark("session");
