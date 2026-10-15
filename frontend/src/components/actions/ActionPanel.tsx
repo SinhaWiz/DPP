@@ -132,7 +132,7 @@ export function ActionPanel() {
         </p>
 
         <div className="flex flex-wrap gap-2">
-          <button type="submit" disabled={!ready} className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40">
+          <button type="submit" disabled={!ready} className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-on-solid disabled:opacity-40">
             Send
           </button>
           <button type="button" disabled={!ready} onClick={() => void simulateOnly()} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface-2 disabled:opacity-40">
@@ -158,7 +158,7 @@ function ActiveTxControls({ def }: { def: ActionDef }) {
     return (
       <div className="rounded-lg border border-intact p-3 text-sm" role="status">
         <p className="mb-2 font-medium">✔ The simulation says this would succeed.</p>
-        <button type="button" onClick={() => void flow.submit(active.id)} className="rounded-md bg-accent px-3 py-1.5 font-medium text-white">Send it now</button>
+        <button type="button" onClick={() => void flow.submit(active.id)} className="rounded-md bg-accent px-3 py-1.5 font-medium text-on-solid">Send it now</button>
       </div>
     );
   }

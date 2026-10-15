@@ -21,7 +21,7 @@ export function TopBar({ status }: { status?: React.ReactNode }) {
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-surface px-4 py-2">
       <div className="flex items-center gap-2 font-semibold">
-        <span aria-hidden className="grid h-7 w-7 place-items-center rounded-md bg-accent text-sm text-white">⛓</span>
+        <span aria-hidden className="grid h-7 w-7 place-items-center rounded-md bg-accent text-sm text-on-solid">⛓</span>
         <span>Ledger Lab</span>
       </div>
 

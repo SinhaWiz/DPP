@@ -43,7 +43,8 @@ export function Dock({ panels }: { panels?: Partial<Record<DockTab, ReactNode>> 
   const { dockOpen, dockTab, toggleDock, setDockTab } = useUi();
   return (
     <section aria-label="Transactions" className="border-t border-border bg-surface">
-      <div className="flex items-center gap-1 px-3 pt-1" role="tablist" aria-label="Transaction views">
+      <div className="flex items-center gap-1 px-3 pt-1">
+        <div className="flex items-center gap-1" role="tablist" aria-label="Transaction views">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -58,6 +59,7 @@ export function Dock({ panels }: { panels?: Partial<Record<DockTab, ReactNode>> 
             {t.label}
           </button>
         ))}
+        </div>
         <button
           type="button"
           aria-expanded={dockOpen}

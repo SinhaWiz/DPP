@@ -67,7 +67,7 @@ export function VerificationConsole() {
 
       {error && <p role="alert" className="text-sm text-tampered">{error}</p>}
 
-      <div aria-live="polite" aria-label="Console result">
+      <div role="region" aria-live="polite" aria-label="Console result">
         {shown?.kind === "ledger" && <LedgerResult verify={shown.verify} />}
         {shown?.kind === "audit" && <AuditResult verify={shown.verify} />}
         {shown?.kind === "browser" && <BrowserResult />}

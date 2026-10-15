@@ -43,7 +43,7 @@ export function ExplainPanel() {
       <div className="flex items-center justify-between gap-2">
         <div role="radiogroup" aria-label="Level of detail" className="inline-flex overflow-hidden rounded-md border border-border text-xs">
           {(["beginner", "detailed"] as const).map((m) => (
-            <button key={m} type="button" role="radio" aria-checked={explainMode === m} onClick={() => setExplainMode(m)} className={`px-2.5 py-1 capitalize ${explainMode === m ? "bg-accent text-white" : "hover:bg-surface-2"}`}>
+            <button key={m} type="button" role="radio" aria-checked={explainMode === m} onClick={() => setExplainMode(m)} className={`px-2.5 py-1 capitalize ${explainMode === m ? "bg-accent text-on-solid" : "hover:bg-surface-2"}`}>
               {m}
             </button>
           ))}

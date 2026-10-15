@@ -51,7 +51,7 @@ export function MiningControl() {
             title={m.hint}
             aria-pressed={mining.mode === m.id}
             onClick={() => void run(() => api.lab.setMining(m.id, m.id === "interval" ? SLOW_MS : undefined))}
-            className={`px-2.5 py-1 ${mining.mode === m.id ? "bg-accent text-white" : "hover:bg-surface-2"}`}
+            className={`px-2.5 py-1 ${mining.mode === m.id ? "bg-accent text-on-solid" : "hover:bg-surface-2"}`}
           >
             {m.label}
           </button>

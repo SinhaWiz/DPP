@@ -82,7 +82,7 @@ export function AttackLevels({ onChanged }: { onChanged(): void }) {
           <label className="flex flex-col"><span className="text-xs text-muted">New value</span>
             <input value={value} onChange={(e) => setValue(e.target.value)} className="w-56 rounded-md border border-border bg-surface px-2 py-1 font-mono text-xs" />
           </label>
-          <button type="button" disabled={busy || needsMore} onClick={() => void run()} className="rounded-md bg-tampered px-3 py-1.5 font-medium text-white disabled:opacity-40">
+          <button type="button" disabled={busy || needsMore} onClick={() => void run()} className="rounded-md bg-tampered px-3 py-1.5 font-medium text-on-solid disabled:opacity-40">
             Run the attack
           </button>
         </div>

@@ -54,7 +54,7 @@ export function MempoolTray() {
       <p className="text-sm text-muted">
         {pending.length} transaction{pending.length === 1 ? "" : "s"} waiting for a block.
         {lab && mining?.mode === "manual" && (
-          <button type="button" onClick={() => void getLiveController().api.lab.mine(1)} className="ml-2 rounded-md bg-accent px-2.5 py-1 text-sm font-medium text-white">
+          <button type="button" onClick={() => void getLiveController().api.lab.mine(1)} className="ml-2 rounded-md bg-accent px-2.5 py-1 text-sm font-medium text-on-solid">
             Mine them now
           </button>
         )}

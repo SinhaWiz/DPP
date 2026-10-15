@@ -73,7 +73,7 @@ export function RecordDetail({ record, previous, check, onClose }: Props) {
           <div className="rounded-lg border border-border p-3">
             <h3 className="mb-1 font-medium">Verify it yourself</h3>
             <p className="mb-2 text-sm text-muted">Recompute this record's hash in your browser and compare it with what is stored and with the previous record.</p>
-            <button type="button" onClick={verify} className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white">
+            <button type="button" onClick={verify} className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-on-solid">
               Recompute now
             </button>
             {verified && (

@@ -12,7 +12,7 @@ function Avatar({ address }: { address: string }) {
     <span
       aria-hidden
       title={label}
-      className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-semibold text-white"
+      className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-semibold text-on-solid"
       style={{ background: `hsl(${hue} 55% 38%)` }}
     >
       {initials}

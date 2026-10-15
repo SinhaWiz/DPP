@@ -113,7 +113,7 @@ describe("VerificationConsole: verifyRange", () => {
 
   it("a click on the minimap selects a short range starting there", async () => {
     await mount();
-    const cells = screen.getByRole("img", { name: /Overview of 8 records/ }).querySelectorAll("button");
+    const cells = screen.getByRole("group", { name: /Overview of 8 records/ }).querySelectorAll("button");
     await userEvent.click(cells[2]!);
     expect(screen.getByRole("button", { name: "verifyRange(2, 5)" })).toBeInTheDocument();
   });

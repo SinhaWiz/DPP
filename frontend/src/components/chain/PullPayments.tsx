@@ -51,7 +51,7 @@ export function PullPayments() {
                   type="button"
                   disabled={busy !== null}
                   onClick={() => void withdraw(b.address)}
-                  className="ml-auto rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-white disabled:opacity-40"
+                  className="ml-auto rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-on-solid disabled:opacity-40"
                 >
                   Withdraw as {b.name ?? "this account"}
                 </button>

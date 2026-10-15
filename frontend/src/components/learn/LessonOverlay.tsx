@@ -81,7 +81,7 @@ export function LessonOverlay({ lessons = LESSONS }: { lessons?: Lesson[] }) {
             {hint && step.hint && <p className="mt-2 rounded-md bg-surface-2 p-2 text-xs"><strong>Hint:</strong> <Rich text={step.hint} /></p>}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button type="button" disabled={run.step === 0} onClick={() => s.back(ctx)} className="rounded-md border border-border px-2.5 py-1 hover:bg-surface-2 disabled:opacity-40">Back</button>
-              <button type="button" disabled={!canAdvance(run, lesson)} onClick={() => s.next(lesson, ctx)} className="rounded-md bg-accent px-3 py-1 font-medium text-white disabled:opacity-40">
+              <button type="button" disabled={!canAdvance(run, lesson)} onClick={() => s.next(lesson, ctx)} className="rounded-md bg-accent px-3 py-1 font-medium text-on-solid disabled:opacity-40">
                 {run.step + 1 === lesson.steps.length ? (lesson.quiz.length ? "To the quiz" : "Finish") : "Next"}
               </button>
               {!step.readOnly && !run.done[run.step] && (
@@ -136,7 +136,7 @@ function Quiz({ lesson }: { lesson: Lesson }) {
       })}
       <div className="flex gap-2">
         <button type="button" onClick={() => back(ctx)} className="rounded-md border border-border px-2.5 py-1 hover:bg-surface-2">Back</button>
-        <button type="button" disabled={!sc.complete} onClick={() => finish(lesson)} className="rounded-md bg-accent px-3 py-1 font-medium text-white disabled:opacity-40">See my result</button>
+        <button type="button" disabled={!sc.complete} onClick={() => finish(lesson)} className="rounded-md bg-accent px-3 py-1 font-medium text-on-solid disabled:opacity-40">See my result</button>
       </div>
     </div>
   );
@@ -150,7 +150,7 @@ function Finished({ lesson, onRestart }: { lesson: Lesson; onRestart(): void }) 
       <h3 className="font-semibold">Lesson complete 🎉</h3>
       {sc.total > 0 && <p>You answered <strong>{sc.correct} of {sc.total}</strong> correctly.</p>}
       <div className="flex gap-2">
-        <button type="button" onClick={() => useLessons.getState().exit()} className="rounded-md bg-accent px-3 py-1 font-medium text-white">Back to the lessons</button>
+        <button type="button" onClick={() => useLessons.getState().exit()} className="rounded-md bg-accent px-3 py-1 font-medium text-on-solid">Back to the lessons</button>
         <button type="button" onClick={onRestart} className="rounded-md border border-border px-3 py-1 hover:bg-surface-2">Do it again</button>
       </div>
     </div>

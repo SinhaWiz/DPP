@@ -86,7 +86,7 @@ describe("Minimap", () => {
     const { container } = render(<Minimap checks={verifyInBrowser(records).checks} onJump={() => {}} />);
     const cells = [...container.querySelectorAll("button")];
     expect(cells.map((c) => c.getAttribute("data-status"))).toEqual(["intact", "intact", "dataTampered", "intact", "intact"]);
-    expect(screen.getByRole("img")).toHaveAccessibleName("Overview of 5 records, 1 with problems");
+    expect(screen.getByRole("group", { name: /Overview/ })).toHaveAccessibleName("Overview of 5 records, 1 with problems");
   });
 
   it("buckets a long chain but never hides a problem inside a bucket", () => {

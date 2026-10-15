@@ -33,7 +33,7 @@ export function Minimap({ checks, onJump, visible, maxCells = 120 }: {
 
   return (
     <div
-      role="img"
+      role="group"
       aria-label={`Overview of ${checks.length} records, ${bad === 0 ? "all intact" : `${bad} with problems`}`}
       className="flex h-3 w-full overflow-hidden rounded-full border border-border"
     >

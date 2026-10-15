@@ -43,7 +43,7 @@ export function StoryPlayer() {
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button type="button" disabled={!env || !env.automine || playing} onClick={() => void play()} className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40">
+        <button type="button" disabled={!env || !env.automine || playing} onClick={() => void play()} className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-on-solid disabled:opacity-40">
           {state === "done" || state === "stopped" || state === "error" ? "Play again" : "Play the story"}
         </button>
         <button type="button" disabled={!playing} onClick={() => abort.current?.abort()} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface-2 disabled:opacity-40">

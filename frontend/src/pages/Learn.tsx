@@ -25,7 +25,7 @@ function LessonCard({ lesson, highlighted, labOff, disabledReason }: { lesson: L
       </div>
       <p className="mt-1 text-sm text-muted"><Rich text={lesson.summary} /></p>
       <div className="mt-3 flex items-center gap-3">
-        <button type="button" disabled={blocked || running} onClick={start} className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40">
+        <button type="button" disabled={blocked || running} onClick={start} className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-on-solid disabled:opacity-40">
           {running ? "In progress" : progress ? "Do it again" : "Start the lesson"}
         </button>
         {blocked && <span className="text-xs text-pending">{disabledReason ?? "The lab is not available here."}</span>}
