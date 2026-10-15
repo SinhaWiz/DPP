@@ -4,7 +4,9 @@ const fs = require("fs");
 const path = require("path");
 
 const ROLES = require("../../packages/shared/src/roles.json");
-const OUTPUT = path.join(__dirname, "..", "..", "packages", "shared", "src", "generated", "deployment.json");
+const DEFAULT_OUTPUT = path.join(__dirname, "..", "..", "packages", "shared", "src", "generated", "deployment.json");
+/** Where deployment.json lives. DEPLOYMENT_PATH overrides it (the lab reset and the tests use this). */
+const outputPath = () => process.env.DEPLOYMENT_PATH || DEFAULT_OUTPUT;
 
 const MARKET = "contracts/BuySellTraceability.sol:BuySellTraceability";
 const REJECTER = "contracts/test/EtherRejecter.sol:EtherRejecter";
@@ -77,17 +79,17 @@ async function deployAll(hre, { write = false } = {}) {
   };
 
   if (write) {
-    fs.mkdirSync(path.dirname(OUTPUT), { recursive: true });
-    fs.writeFileSync(OUTPUT, JSON.stringify(deployment, null, 2) + "\n");
+    fs.mkdirSync(path.dirname(outputPath()), { recursive: true });
+    fs.writeFileSync(outputPath(), JSON.stringify(deployment, null, 2) + "\n");
   }
   return { deployment, market, rejecter, signers };
 }
 
 function readDeployment() {
-  if (!fs.existsSync(OUTPUT)) {
+  if (!fs.existsSync(outputPath())) {
     throw new Error("No deployment found. Run `npm run dev:deploy` against a running `npm run dev:node` first.");
   }
-  return JSON.parse(fs.readFileSync(OUTPUT, "utf8"));
+  return JSON.parse(fs.readFileSync(outputPath(), "utf8"));
 }
 
-module.exports = { deployAll, readDeployment, readStorageLayout, OUTPUT, ROLES };
+module.exports = { deployAll, readDeployment, readStorageLayout, outputPath, ROLES };

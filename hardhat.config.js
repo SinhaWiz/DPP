@@ -27,6 +27,6 @@ module.exports = {
       chainId: 31337,
       ...(devNode ? { throwOnTransactionFailures: false, mining: { auto: true, interval: 0 } } : {}),
     },
-    localhost: { url: "http://127.0.0.1:8545" },
+    localhost: { url: process.env.HARDHAT_RPC_URL || "http://127.0.0.1:8545" },
   },
 };

@@ -2,7 +2,7 @@
 // Against a local node it also writes packages/shared/src/generated/deployment.json,
 // which the backend and frontend read (address, ABI, deploy block, storage slots, roles).
 const hre = require("hardhat");
-const { deployAll, OUTPUT } = require("./lib/deploy");
+const { deployAll, outputPath } = require("./lib/deploy");
 
 async function main() {
   const write = hre.network.name === "localhost" || process.env.WRITE_DEPLOYMENT === "1";
@@ -12,7 +12,7 @@ async function main() {
   console.log("EtherRejecter       deployed to:", deployment.contracts.rejecter.address);
   console.log("Deploy block:", deployment.deployBlock, "| session:", deployment.sessionId.slice(0, 12) + "…");
   if (write) {
-    console.log("Deployment file written:", OUTPUT);
+    console.log("Deployment file written:", outputPath());
     console.log("Next: `npm run dev:seed` to load sample data.");
   } else {
     console.log("(in-memory network: deployment file not written; set WRITE_DEPLOYMENT=1 to force)");

@@ -17,6 +17,7 @@ export type MessageType =
   | "lab.tampered"
   | "lab.restored"
   | "mining.changed"
+  | "lab.scenario"
   | "indexer.status";
 
 export interface BusMessage<T = unknown> {

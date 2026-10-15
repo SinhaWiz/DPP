@@ -9,6 +9,8 @@ import type { VerificationService } from "../verification";
 import type { RawTx } from "../indexer/rawTypes";
 import { toBig, toHexQuantity } from "../indexer/rawTypes";
 import { labAvailability, type LabAvailability } from "./guard";
+import { resetChain } from "./reset";
+import { ScenarioRunner } from "./scenarios";
 import { TamperEngine } from "./tamper";
 
 export class LabError extends Error {
@@ -55,9 +57,16 @@ export class Lab {
   private graceTimer: NodeJS.Timeout | null = null;
 
   readonly tamper: TamperEngine;
+  readonly scenarios: ScenarioRunner;
 
   constructor(readonly d: LabDeps) {
     this.tamper = new TamperEngine(this);
+    this.scenarios = new ScenarioRunner(this);
+  }
+
+  /** Redeploys the contracts (and optionally reseeds). The previous index, snapshots and attacks are discarded. */
+  reset(options: { seed: boolean; withFailures: boolean }) {
+    return resetChain(this, options);
   }
 
   // ───────────────────────── availability ─────────────────────────

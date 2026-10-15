@@ -247,6 +247,62 @@ export type ApiStorageWrite = z.infer<typeof StorageWriteSchema>;
 export type ApiRevert = z.infer<typeof RevertSchema>;
 export type ApiError = z.infer<typeof ErrorSchema>;
 
+
+// ── lab (local dev chain only) ──
+
+export const MiningStateSchema = z.object({
+  mode: z.enum(["auto", "manual", "interval"]),
+  automine: z.boolean(),
+  intervalMs: z.number().int().nullable(),
+});
+export const LabStatusSchema = z.object({ mining: MiningStateSchema, clients: z.number().int() });
+export const MineResultSchema = z.object({ mined: z.number().int(), headBlock: z.number().int() });
+export const TimeResultSchema = z.object({ timestamp: z.number().int() });
+export const DropResultSchema = z.object({ hash: hex32, dropped: z.literal(true) });
+export const ReplaceResultSchema = z.object({ original: hex32, replacement: hex32, mode: z.enum(["cancel", "speedUp"]) });
+
+export const SnapshotSchema = z.object({ name: z.string(), id: z.string(), block: z.number().int(), createdAt: z.number() });
+export const SnapshotListSchema = z.object({ snapshots: z.array(SnapshotSchema) });
+export const RestoreResultSchema = z.object({ name: z.string(), headBlock: z.number().int(), snapshot: SnapshotSchema });
+
+export const TamperWriteSchema = z.object({
+  recordIndex: decimal, field: z.string(), slot: hex32, oldValue: hex32, newValue: hex32,
+});
+const OffChainSchema = z.object({
+  valid: z.boolean(), recordCount: z.number().int(), firstBrokenAt: decimal.nullable(),
+  firstBrokenOnChainAt: decimal.nullable(), brokenIndexes: z.array(decimal),
+});
+export const TamperResultSchema = z.object({
+  groupId: z.string(),
+  mode: z.enum(["data", "data+hash", "rewrite-tail", "undo"]),
+  writes: z.array(TamperWriteSchema),
+  changed: z.array(decimal),
+  offChain: OffChainSchema,
+  onChain: z.object({ valid: z.boolean(), brokenAt: decimal }).nullable(),
+  comparison: z.object({ agree: z.boolean(), contractFooled: z.boolean(), notes: z.array(z.string()) }).nullable(),
+});
+export const TamperListSchema = z.object({
+  attacks: z.array(z.object({ groupId: z.string(), mode: z.string(), createdAt: z.number(), writes: z.array(TamperWriteSchema) })),
+});
+export const UndoAllSchema = z.object({ undone: z.array(z.string()), offChain: OffChainSchema });
+
+export const ScenarioInfoSchema = z.object({ name: z.string(), title: z.string(), description: z.string(), needsAutomine: z.literal(true) });
+export const ScenarioListSchema = z.object({ scenarios: z.array(ScenarioInfoSchema) });
+export const ScenarioRunSchema = z.object({ name: z.string(), steps: z.array(z.string()), result: z.record(z.string(), z.unknown()) });
+export const ResetResultSchema = z.object({ seeded: z.boolean() });
+
+export const TamperBody = z.object({
+  index: z.union([decimal, z.number().int().min(0)]),
+  field: z.enum(["index", "timestamp", "productId", "action", "actor", "counterparty", "price", "prevHash", "hash"]),
+  value: z.union([z.string(), z.number()]).describe("Decimal or 0x-hex; must fit the field"),
+  mode: z.enum(["data", "data+hash", "rewrite-tail"]).default("data"),
+});
+export type ApiLabStatus = z.infer<typeof LabStatusSchema>;
+export type ApiMiningState = z.infer<typeof MiningStateSchema>;
+export type ApiTamperResult = z.infer<typeof TamperResultSchema>;
+export type ApiSnapshot = z.infer<typeof SnapshotSchema>;
+export type ApiScenarioInfo = z.infer<typeof ScenarioInfoSchema>;
+
 // ── route table (also drives the OpenAPI document) ──
 
 export interface RouteSpec {
@@ -254,6 +310,7 @@ export interface RouteSpec {
   path: string;
   summary: string;
   query?: z.ZodObject<z.ZodRawShape>;
+  body?: z.ZodType;
   response: z.ZodType;
   tag: "chain" | "ledger" | "transactions" | "lab";
 }
@@ -290,6 +347,22 @@ export const ROUTES: RouteSpec[] = [
   { method: "get", path: "/api/blocks", summary: "Ethereum blocks with the transactions and records they contain", query: BlocksQuery, response: BlockListSchema, tag: "chain" },
   { method: "get", path: "/api/verify", summary: "Off-chain verdict next to the contract's verifyLedger / auditRange", response: VerifySchema, tag: "ledger" },
   { method: "get", path: "/api/storage/records/{index}", summary: "Raw storage slots of a record next to their decoded values", response: StorageRecordSchema, tag: "ledger" },
+  { method: "get", path: "/api/lab/status", summary: "Mining mode and number of connected clients", response: LabStatusSchema, tag: "lab" },
+  { method: "post", path: "/api/lab/mining", summary: "Switch between automatic, manual and interval mining", body: z.object({ mode: z.enum(["auto", "manual", "interval"]), intervalMs: z.number().int().min(100).max(60000).optional() }), response: MiningStateSchema, tag: "lab" },
+  { method: "post", path: "/api/lab/mine", summary: "Mine blocks now (manual mining)", body: z.object({ blocks: z.number().int().min(1).max(100).optional() }), response: MineResultSchema, tag: "lab" },
+  { method: "post", path: "/api/lab/time", summary: "Move the chain's clock forward and mine a block", body: z.object({ seconds: z.number().int().min(1).max(2592000) }), response: TimeResultSchema, tag: "lab" },
+  { method: "post", path: "/api/lab/txs/{hash}/drop", summary: "Remove a pending transaction from the mempool", response: DropResultSchema, tag: "lab" },
+  { method: "post", path: "/api/lab/txs/{hash}/replace", summary: "Replace a pending transaction (cancel it or speed it up)", body: z.object({ mode: z.enum(["cancel", "speedUp"]) }), response: ReplaceResultSchema, tag: "lab" },
+  { method: "get", path: "/api/lab/snapshots", summary: "Named chain snapshots", response: SnapshotListSchema, tag: "lab" },
+  { method: "post", path: "/api/lab/snapshots", summary: "Take (or replace) a named snapshot", body: z.object({ name: z.string().regex(/^[\w-]{1,40}$/) }), response: SnapshotSchema, tag: "lab" },
+  { method: "post", path: "/api/lab/restore", summary: "Restore the chain to a named snapshot", body: z.object({ name: z.string() }), response: RestoreResultSchema, tag: "lab" },
+  { method: "get", path: "/api/lab/tamper", summary: "Active storage edits (attacks)", response: TamperListSchema, tag: "lab" },
+  { method: "post", path: "/api/lab/tamper", summary: "Edit a stored record directly: data only, data + hash, or rewrite the whole tail", body: TamperBody, response: TamperResultSchema, tag: "lab" },
+  { method: "post", path: "/api/lab/tamper/{groupId}/undo", summary: "Undo one attack (newest first when they overlap)", response: TamperResultSchema, tag: "lab" },
+  { method: "post", path: "/api/lab/tamper/undo-all", summary: "Undo every active attack, newest first", response: UndoAllSchema, tag: "lab" },
+  { method: "get", path: "/api/lab/scenarios", summary: "Scripted scenarios the lab can run", response: ScenarioListSchema, tag: "lab" },
+  { method: "post", path: "/api/lab/scenarios/{name}", summary: "Run a scenario with the dev accounts", body: z.object({ count: z.number().int().min(1).max(200).optional() }), response: ScenarioRunSchema, tag: "lab" },
+  { method: "post", path: "/api/lab/reset", summary: "Redeploy the contracts and optionally load the sample data", body: z.object({ seed: z.boolean().default(true), withFailures: z.boolean().default(true) }), response: ResetResultSchema, tag: "lab" },
 ];
 
 // ── WebSocket protocol ──
@@ -310,7 +383,7 @@ export type WsHello = z.infer<typeof WsHelloSchema>;
 
 export const WS_MESSAGE_TYPES = [
   "block.new", "tx.pending", "tx.mined", "tx.failed", "tx.replaced", "tx.dropped", "record.appended",
-  "verification.changed", "chain.rewound", "chain.reset", "lab.tampered", "lab.restored", "mining.changed", "indexer.status",
+  "verification.changed", "chain.rewound", "chain.reset", "lab.tampered", "lab.restored", "mining.changed", "lab.scenario", "indexer.status",
 ] as const;
 export type WsMessageType = (typeof WS_MESSAGE_TYPES)[number];
 

@@ -3822,6 +3822,1762 @@
           }
         }
       }
+    },
+    "/api/lab/status": {
+      "get": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Mining mode and number of connected clients",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mining": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "auto",
+                            "manual",
+                            "interval"
+                          ]
+                        },
+                        "automine": {
+                          "type": "boolean"
+                        },
+                        "intervalMs": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "automine",
+                        "intervalMs"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "clients": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "mining",
+                    "clients"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lab/mining": {
+      "post": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Switch between automatic, manual and interval mining",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "auto",
+                      "manual",
+                      "interval"
+                    ]
+                  },
+                  "intervalMs": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 60000
+                  }
+                },
+                "required": [
+                  "mode"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "auto",
+                        "manual",
+                        "interval"
+                      ]
+                    },
+                    "automine": {
+                      "type": "boolean"
+                    },
+                    "intervalMs": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "automine",
+                    "intervalMs"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lab/mine": {
+      "post": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Mine blocks now (manual mining)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "blocks": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mined": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "headBlock": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "mined",
+                    "headBlock"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lab/time": {
+      "post": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Move the chain's clock forward and mine a block",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2592000
+                  }
+                },
+                "required": [
+                  "seconds"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "timestamp": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "timestamp"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lab/txs/{hash}/drop": {
+      "post": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Remove a pending transaction from the mempool",
+        "parameters": [
+          {
+            "name": "hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "hash": {
+                      "type": "string",
+                      "pattern": "^0x[0-9a-fA-F]{64}$",
+                      "description": "32-byte hex value"
+                    },
+                    "dropped": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "hash",
+                    "dropped"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lab/txs/{hash}/replace": {
+      "post": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Replace a pending transaction (cancel it or speed it up)",
+        "parameters": [
+          {
+            "name": "hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "cancel",
+                      "speedUp"
+                    ]
+                  }
+                },
+                "required": [
+                  "mode"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "original": {
+                      "type": "string",
+                      "pattern": "^0x[0-9a-fA-F]{64}$",
+                      "description": "32-byte hex value"
+                    },
+                    "replacement": {
+                      "type": "string",
+                      "pattern": "^0x[0-9a-fA-F]{64}$",
+                      "description": "32-byte hex value"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "cancel",
+                        "speedUp"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "original",
+                    "replacement",
+                    "mode"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lab/snapshots": {
+      "get": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Named chain snapshots",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "snapshots": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "block": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "createdAt": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "id",
+                          "block",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "snapshots"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Take (or replace) a named snapshot",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[\\w-]{1,40}$"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "block": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "createdAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "id",
+                    "block",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lab/restore": {
+      "post": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Restore the chain to a named snapshot",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "headBlock": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "snapshot": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "block": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "id",
+                        "block",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "headBlock",
+                    "snapshot"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lab/tamper": {
+      "get": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Active storage edits (attacks)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "attacks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "groupId": {
+                            "type": "string"
+                          },
+                          "mode": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "number"
+                          },
+                          "writes": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "recordIndex": {
+                                  "type": "string",
+                                  "pattern": "^\\d+$",
+                                  "description": "Unsigned integer as a decimal string"
+                                },
+                                "field": {
+                                  "type": "string"
+                                },
+                                "slot": {
+                                  "type": "string",
+                                  "pattern": "^0x[0-9a-fA-F]{64}$",
+                                  "description": "32-byte hex value"
+                                },
+                                "oldValue": {
+                                  "type": "string",
+                                  "pattern": "^0x[0-9a-fA-F]{64}$",
+                                  "description": "32-byte hex value"
+                                },
+                                "newValue": {
+                                  "type": "string",
+                                  "pattern": "^0x[0-9a-fA-F]{64}$",
+                                  "description": "32-byte hex value"
+                                }
+                              },
+                              "required": [
+                                "recordIndex",
+                                "field",
+                                "slot",
+                                "oldValue",
+                                "newValue"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "groupId",
+                          "mode",
+                          "createdAt",
+                          "writes"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "attacks"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Edit a stored record directly: data only, data + hash, or rewrite the whole tail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "index": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d+$",
+                        "description": "Unsigned integer as a decimal string"
+                      },
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    ]
+                  },
+                  "field": {
+                    "type": "string",
+                    "enum": [
+                      "index",
+                      "timestamp",
+                      "productId",
+                      "action",
+                      "actor",
+                      "counterparty",
+                      "price",
+                      "prevHash",
+                      "hash"
+                    ]
+                  },
+                  "value": {
+                    "description": "Decimal or 0x-hex; must fit the field",
+                    "type": [
+                      "string",
+                      "number"
+                    ]
+                  },
+                  "mode": {
+                    "default": "data",
+                    "type": "string",
+                    "enum": [
+                      "data",
+                      "data+hash",
+                      "rewrite-tail"
+                    ]
+                  }
+                },
+                "required": [
+                  "index",
+                  "field",
+                  "value"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "groupId": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "data",
+                        "data+hash",
+                        "rewrite-tail",
+                        "undo"
+                      ]
+                    },
+                    "writes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "recordIndex": {
+                            "type": "string",
+                            "pattern": "^\\d+$",
+                            "description": "Unsigned integer as a decimal string"
+                          },
+                          "field": {
+                            "type": "string"
+                          },
+                          "slot": {
+                            "type": "string",
+                            "pattern": "^0x[0-9a-fA-F]{64}$",
+                            "description": "32-byte hex value"
+                          },
+                          "oldValue": {
+                            "type": "string",
+                            "pattern": "^0x[0-9a-fA-F]{64}$",
+                            "description": "32-byte hex value"
+                          },
+                          "newValue": {
+                            "type": "string",
+                            "pattern": "^0x[0-9a-fA-F]{64}$",
+                            "description": "32-byte hex value"
+                          }
+                        },
+                        "required": [
+                          "recordIndex",
+                          "field",
+                          "slot",
+                          "oldValue",
+                          "newValue"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "changed": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^\\d+$",
+                        "description": "Unsigned integer as a decimal string"
+                      }
+                    },
+                    "offChain": {
+                      "type": "object",
+                      "properties": {
+                        "valid": {
+                          "type": "boolean"
+                        },
+                        "recordCount": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "firstBrokenAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^\\d+$",
+                              "description": "Unsigned integer as a decimal string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "firstBrokenOnChainAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^\\d+$",
+                              "description": "Unsigned integer as a decimal string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "brokenIndexes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^\\d+$",
+                            "description": "Unsigned integer as a decimal string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "valid",
+                        "recordCount",
+                        "firstBrokenAt",
+                        "firstBrokenOnChainAt",
+                        "brokenIndexes"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "onChain": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "valid": {
+                              "type": "boolean"
+                            },
+                            "brokenAt": {
+                              "type": "string",
+                              "pattern": "^\\d+$",
+                              "description": "Unsigned integer as a decimal string"
+                            }
+                          },
+                          "required": [
+                            "valid",
+                            "brokenAt"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "comparison": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "agree": {
+                              "type": "boolean"
+                            },
+                            "contractFooled": {
+                              "type": "boolean"
+                            },
+                            "notes": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "agree",
+                            "contractFooled",
+                            "notes"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "groupId",
+                    "mode",
+                    "writes",
+                    "changed",
+                    "offChain",
+                    "onChain",
+                    "comparison"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lab/tamper/{groupId}/undo": {
+      "post": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Undo one attack (newest first when they overlap)",
+        "parameters": [
+          {
+            "name": "groupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "groupId": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "data",
+                        "data+hash",
+                        "rewrite-tail",
+                        "undo"
+                      ]
+                    },
+                    "writes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "recordIndex": {
+                            "type": "string",
+                            "pattern": "^\\d+$",
+                            "description": "Unsigned integer as a decimal string"
+                          },
+                          "field": {
+                            "type": "string"
+                          },
+                          "slot": {
+                            "type": "string",
+                            "pattern": "^0x[0-9a-fA-F]{64}$",
+                            "description": "32-byte hex value"
+                          },
+                          "oldValue": {
+                            "type": "string",
+                            "pattern": "^0x[0-9a-fA-F]{64}$",
+                            "description": "32-byte hex value"
+                          },
+                          "newValue": {
+                            "type": "string",
+                            "pattern": "^0x[0-9a-fA-F]{64}$",
+                            "description": "32-byte hex value"
+                          }
+                        },
+                        "required": [
+                          "recordIndex",
+                          "field",
+                          "slot",
+                          "oldValue",
+                          "newValue"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "changed": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^\\d+$",
+                        "description": "Unsigned integer as a decimal string"
+                      }
+                    },
+                    "offChain": {
+                      "type": "object",
+                      "properties": {
+                        "valid": {
+                          "type": "boolean"
+                        },
+                        "recordCount": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "firstBrokenAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^\\d+$",
+                              "description": "Unsigned integer as a decimal string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "firstBrokenOnChainAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^\\d+$",
+                              "description": "Unsigned integer as a decimal string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "brokenIndexes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^\\d+$",
+                            "description": "Unsigned integer as a decimal string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "valid",
+                        "recordCount",
+                        "firstBrokenAt",
+                        "firstBrokenOnChainAt",
+                        "brokenIndexes"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "onChain": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "valid": {
+                              "type": "boolean"
+                            },
+                            "brokenAt": {
+                              "type": "string",
+                              "pattern": "^\\d+$",
+                              "description": "Unsigned integer as a decimal string"
+                            }
+                          },
+                          "required": [
+                            "valid",
+                            "brokenAt"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "comparison": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "agree": {
+                              "type": "boolean"
+                            },
+                            "contractFooled": {
+                              "type": "boolean"
+                            },
+                            "notes": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "agree",
+                            "contractFooled",
+                            "notes"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "groupId",
+                    "mode",
+                    "writes",
+                    "changed",
+                    "offChain",
+                    "onChain",
+                    "comparison"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lab/tamper/undo-all": {
+      "post": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Undo every active attack, newest first",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "undone": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "offChain": {
+                      "type": "object",
+                      "properties": {
+                        "valid": {
+                          "type": "boolean"
+                        },
+                        "recordCount": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "firstBrokenAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^\\d+$",
+                              "description": "Unsigned integer as a decimal string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "firstBrokenOnChainAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^\\d+$",
+                              "description": "Unsigned integer as a decimal string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "brokenIndexes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^\\d+$",
+                            "description": "Unsigned integer as a decimal string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "valid",
+                        "recordCount",
+                        "firstBrokenAt",
+                        "firstBrokenOnChainAt",
+                        "brokenIndexes"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "undone",
+                    "offChain"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lab/scenarios": {
+      "get": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Scripted scenarios the lab can run",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scenarios": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "needsAutomine": {
+                            "type": "boolean",
+                            "const": true
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "title",
+                          "description",
+                          "needsAutomine"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "scenarios"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lab/scenarios/{name}": {
+      "post": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Run a scenario with the dev accounts",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "steps": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "result": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "steps",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lab/reset": {
+      "post": {
+        "tags": [
+          "lab"
+        ],
+        "summary": "Redeploy the contracts and optionally load the sample data",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "seed": {
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "withFailures": {
+                    "default": true,
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "seeded": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "seeded"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The lab is unavailable (not the local dev chain, or the API is not on loopback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3911,6 +5667,7 @@
               "lab.tampered",
               "lab.restored",
               "mining.changed",
+              "lab.scenario",
               "indexer.status"
             ]
           },

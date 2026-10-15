@@ -26,15 +26,24 @@ export function buildOpenApi(): Json {
     }
 
     const hasPathParam = route.path.includes("{");
+    const requestBody = route.body
+      ? { requestBody: { required: true, content: { "application/json": { schema: schemaOf(route.body, "input") } } } }
+      : {};
+    const labError =
+      route.tag === "lab"
+        ? { "403": { description: "The lab is unavailable (not the local dev chain, or the API is not on loopback)", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } } }
+        : {};
     paths[route.path] = {
       ...(paths[route.path] ?? {}),
       [route.method]: {
         tags: [route.tag],
         summary: route.summary,
         parameters,
+        ...requestBody,
         responses: {
           "200": { description: "OK", content: { "application/json": { schema: schemaOf(route.response, "output") } } },
           "400": { description: "Invalid parameters", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          ...labError,
           ...(hasPathParam
             ? { "404": { description: "Not found", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } } }
             : {}),

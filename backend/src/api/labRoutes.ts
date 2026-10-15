@@ -52,6 +52,18 @@ export async function registerLabRoutes(app: FastifyInstance, s: Services): Prom
     lab.post("/api/lab/tamper/undo-all", async () => s.lab.tamper.undoAll());
     lab.post("/api/lab/tamper/:groupId/undo", async (req) => s.lab.tamper.undo(z.object({ groupId: z.string().min(1) }).parse(req.params).groupId));
 
+    lab.get("/api/lab/scenarios", async () => ({ scenarios: s.lab.scenarios.list() }));
+    lab.post("/api/lab/scenarios/:name", async (req) => {
+      const { name } = z.object({ name: z.string().min(1) }).parse(req.params);
+      const options = z.object({ count: z.number().int().optional() }).parse(req.body ?? {});
+      return s.lab.scenarios.run(name, options);
+    });
+
+    lab.post("/api/lab/reset", async (req) => {
+      const body = z.object({ seed: z.boolean().default(true), withFailures: z.boolean().default(true) }).parse(req.body ?? {});
+      return s.lab.reset(body);
+    });
+
     lab.get("/api/lab/snapshots", async () => ({ snapshots: s.lab.listSnapshots() }));
     lab.post("/api/lab/snapshots", async (req) => s.lab.snapshot(z.object({ name: z.string() }).parse(req.body).name));
     lab.post("/api/lab/restore", async (req) => s.lab.restore(z.object({ name: z.string() }).parse(req.body).name));
