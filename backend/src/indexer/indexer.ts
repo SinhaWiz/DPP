@@ -70,6 +70,7 @@ export class Indexer {
   private allProductsDirty = true;
   /** Number of records in the index before the latest sync (for incremental verification). */
   private recordsBefore = 0;
+  private recordsTrimmed = false;
 
   constructor(private readonly d: IndexerDeps) {
     this.traces = new TraceReader(d.rpc);
@@ -89,6 +90,11 @@ export class Indexer {
 
   getDeployment(): Deployment | null {
     return this.deployment;
+  }
+
+  /** What the contract itself says about the ledger's integrity (`verifyLedger` and `auditRange`). */
+  async onChainVerdict(): Promise<Awaited<ReturnType<LedgerReader["onChainVerdict"]>> | null> {
+    return this.reader ? this.reader.onChainVerdict() : null;
   }
 
   getDecoder(): Decoder | null {
@@ -190,10 +196,14 @@ export class Indexer {
     if (reset) this.allProductsDirty = true;
     this.deployment = deployment;
 
-    // 3. New blocks.
+    // 3. Did the chain move backwards (evm_revert) or branch? Forget what no longer exists.
     this.setState("syncing");
     const head = toNumber(await rpc.send<string>("eth_blockNumber"));
     this.lastHead = head;
+    const rewound = await this.detectRewind(head, deployment.deployBlock);
+    if (rewound) reset = true;
+
+    // 4. New blocks.
     const latest = repo.latestBlock();
     const first = latest ? latest.number + 1 : deployment.deployBlock;
 
@@ -205,7 +215,8 @@ export class Indexer {
     }
 
     const appended = await this.syncLedger();
-    if (appended > 0 || reset) this.d.verification?.refresh(reset ? null : this.recordsBefore);
+    if (appended > 0 || reset || this.recordsTrimmed) this.d.verification?.refresh(reset || this.recordsTrimmed ? null : this.recordsBefore);
+    this.recordsTrimmed = false;
 
     this.setState("live");
     return { state: this.state, fromBlock: blocks ? first : null, toBlock: blocks ? first + blocks - 1 : null, blocks, txs, events, reset };
@@ -337,6 +348,80 @@ export class Indexer {
     return { txs: txRows.length, events: eventRows.length };
   }
 
+  /**
+   * Compares the newest indexed block with the node's block at the same height. If they differ, or
+   * the chain is shorter, walks back to the last block both agree on and discards everything after it.
+   * Returns true when something was discarded.
+   */
+  private async detectRewind(head: number, deployBlock: number): Promise<boolean> {
+    const { rpc, repo, bus, log } = this.d;
+    const latest = repo.latestBlock();
+    if (!latest) return false;
+
+    const onChain = (n: number) => rpc.send<{ hash: string } | null>("eth_getBlockByNumber", [toHexQuantity(n), false]);
+    if (head >= latest.number && (await onChain(latest.number))?.hash === latest.hash) return false;
+
+    let n = Math.min(latest.number, head);
+    for (; n >= deployBlock; n--) {
+      const stored = repo.getBlock(n);
+      if (stored && (await onChain(n))?.hash === stored.hash) break;
+    }
+    const ancestor = Math.max(n, deployBlock - 1);
+
+    log.info(`chain rewound: index was at block ${latest.number}, node agrees up to block ${ancestor}`);
+    repo.rewindTo(ancestor);
+    this.allProductsDirty = true;
+    this.dirtyProducts.clear();
+    bus.publish("chain.rewound", { fromBlock: latest.number, toBlock: ancestor, headBlock: head });
+    return true;
+  }
+
+  /**
+   * Re-reads every record from contract storage and updates the ones that differ. Storage can change
+   * without a new block (the lab rewrites it directly), so this is called after each tamper.
+   * Returns the indexes whose stored values changed.
+   */
+  async rescanStorage(): Promise<bigint[]> {
+    const run = async () => {
+      const { repo } = this.d;
+      const reader = this.reader;
+      if (!reader) return [];
+
+      const length = await reader.ledgerLength();
+      if (repo.recordCount() > length) {
+        repo.deleteRecordsFrom(length);
+        this.recordsTrimmed = true;
+      }
+
+      const changed: bigint[] = [];
+      for (let offset = 0; offset < repo.recordCount(); offset += LEDGER_PAGE) {
+        const page = await reader.records(offset, LEDGER_PAGE);
+        repo.transaction(() => {
+          for (const r of page) {
+            const old = repo.getRecord(r.index);
+            if (!old) continue;
+            const same =
+              old.productId === r.productId && old.action === r.action && old.actor.toLowerCase() === r.actor.toLowerCase() &&
+              old.counterparty.toLowerCase() === r.counterparty.toLowerCase() && old.price === r.price &&
+              old.timestamp === r.timestamp && old.prevHash === r.prevHash && old.hash === r.hash;
+            if (same) continue;
+            changed.push(r.index);
+            repo.upsertRecord({
+              ...old, productId: r.productId, action: r.action, actor: r.actor, counterparty: r.counterparty,
+              price: r.price, timestamp: r.timestamp, prevHash: r.prevHash, hash: r.hash,
+            });
+          }
+        });
+      }
+      this.recordsTrimmed = false;
+      this.d.verification?.refresh(null);
+      return changed;
+    };
+    // Wait for a running pass so the two never interleave their reads and writes.
+    await this.running?.catch(() => undefined);
+    return run();
+  }
+
   /** Adds the value each slot held before the write, tracking earlier writes in the same block. */
   private async withBefore(
     writes: { slot: string; after: string; gasCost: number }[],
@@ -369,9 +454,15 @@ export class Indexer {
     const reader = this.reader;
     if (!reader) return 0;
 
-    const have = repo.recordCount();
-    this.recordsBefore = have;
+    let have = repo.recordCount();
     const length = await reader.ledgerLength();
+    if (have > length) {
+      // The ledger is shorter than the index believes (chain rewound): drop the extra records.
+      repo.deleteRecordsFrom(length);
+      have = length;
+      this.recordsTrimmed = true;
+    }
+    this.recordsBefore = have;
 
     let added = 0;
     for (let offset = have; offset < length; offset += LEDGER_PAGE) {
@@ -416,6 +507,7 @@ export class Indexer {
     let ids: number[];
     if (this.allProductsDirty) {
       const count = await reader.productCount();
+      repo.deleteProductsAbove(count);
       ids = Array.from({ length: count }, (_, i) => i + 1);
     } else {
       ids = [...this.dirtyProducts].sort((a, b) => a - b);

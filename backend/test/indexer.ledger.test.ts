@@ -51,8 +51,7 @@ describe("indexer: ledger records, witnesses, products and verification", () => 
   it("verifies the indexed ledger as intact, agreeing with the contract", async () => {
     const summary = h.verification.summary();
     expect(summary).toMatchObject({ valid: true, recordCount: 3, brokenIndexes: [] });
-    const reader = (h.indexer as unknown as { reader: { onChainVerdict: () => Promise<{ valid: boolean }> } }).reader;
-    expect((await reader.onChainVerdict()).valid).toBe(true);
+    expect((await h.indexer.onChainVerdict())!.valid).toBe(true);
   });
 
   it("indexes products and updates the owner after a sale", async () => {

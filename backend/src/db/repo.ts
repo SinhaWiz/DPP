@@ -362,6 +362,10 @@ export class Repo {
   allRecords(): RecordRow[] {
     return (this.db.prepare("select * from records order by idx_num").all() as SqlRow[]).map((r) => this.recordFrom(r));
   }
+  /** Drops records at `index` and above (the contract's ledger is shorter than the index thinks). */
+  deleteRecordsFrom(index: number): void {
+    this.db.prepare("delete from records where idx_num >= ?").run(index);
+  }
   recordsForBlock(blockNumber: number): RecordRow[] {
     return (this.db.prepare("select * from records where block_number = ? order by idx_num").all(blockNumber) as SqlRow[]).map((r) => this.recordFrom(r));
   }
@@ -398,6 +402,10 @@ export class Repo {
   }
   listProducts(): ProductRow[] {
     return (this.db.prepare("select * from products order by id_num").all() as SqlRow[]).map((r) => this.productFrom(r));
+  }
+  /** Drops products above `count`: after a rewind they were never registered. */
+  deleteProductsAbove(count: number): void {
+    this.db.prepare("delete from products where id_num > ?").run(count);
   }
   productCount(): number {
     return Number((this.db.prepare("select count(*) as n from products").get() as SqlRow).n);
