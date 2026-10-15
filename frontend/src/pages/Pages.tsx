@@ -15,11 +15,6 @@ export const Playground = () => (
     <EmptyState title="Pick a role to start" />
   </Page>
 );
-export const LearnPage = () => (
-  <Page title="Learn" subtitle="Guided lessons from “what is a block?” to breaking the chain.">
-    <EmptyState title="Lessons are on their way" />
-  </Page>
-);
 export const NotFound = () => (
   <Page title="Page not found" subtitle="That address does not exist.">
     <a className="text-accent underline" href="/">Back to the Explorer</a>

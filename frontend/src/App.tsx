@@ -2,7 +2,8 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Shell } from "@/components/layout/Shell";
 import { AppProviders } from "@/providers";
 import { Explorer } from "@/pages/Explorer";
-import { LearnPage, NotFound, Playground } from "@/pages/Pages";
+import { NotFound, Playground } from "@/pages/Pages";
+import { LearnPage } from "@/pages/Learn";
 import { TamperPage } from "@/pages/TamperLab";
 import { StoragePage } from "@/pages/Storage";
 

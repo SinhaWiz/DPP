@@ -168,3 +168,7 @@ body {
 [data-link-effect="resnap"] { animation: fx-resnap 0.7s ease-out both; animation-delay: var(--fx-delay, 0ms); }
 .fx-stamp { animation: fx-stamp 0.45s ease-out both; animation-delay: var(--fx-delay, 0ms); }
 .fx-crack-lines { animation: fx-seal 0.5s ease-out both; animation-delay: var(--fx-delay, 0ms); }
+
+/* The part of the page a lesson step is about. */
+@keyframes tour-pulse { 0%, 100% { outline-color: var(--accent); } 50% { outline-color: transparent; } }
+.tour-highlight { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 8px; animation: tour-pulse 1.6s ease-in-out infinite; }
