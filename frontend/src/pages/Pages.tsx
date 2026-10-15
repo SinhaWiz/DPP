@@ -10,11 +10,6 @@ function Page({ title, subtitle, children }: { title: string; subtitle: string; 
   );
 }
 
-export const Playground = () => (
-  <Page title="Playground" subtitle="Act as any role and watch each transaction travel step by step.">
-    <EmptyState title="Pick a role to start" />
-  </Page>
-);
 export const NotFound = () => (
   <Page title="Page not found" subtitle="That address does not exist.">
     <a className="text-accent underline" href="/">Back to the Explorer</a>
