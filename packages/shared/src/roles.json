@@ -1,0 +1,7 @@
+[
+  { "index": 0, "name": "Manufacturer", "description": "Creates products and sells to the distributor" },
+  { "index": 1, "name": "Distributor", "description": "Buys from the manufacturer, sells on to the retailer" },
+  { "index": 2, "name": "Retailer", "description": "Buys from the distributor, sells to customers" },
+  { "index": 3, "name": "Customer", "description": "End buyer" },
+  { "index": 4, "name": "Outsider", "description": "Owns nothing; useful for trying actions that should fail" }
+]
