@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vitest/config";
 
 const BACKEND = process.env.VITE_BACKEND ?? "http://127.0.0.1:4000";
+const NODE = process.env.VITE_NODE ?? "http://127.0.0.1:8545";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -13,6 +14,8 @@ export default defineConfig({
     proxy: {
       "/api": { target: BACKEND, changeOrigin: true },
       "/ws": { target: BACKEND.replace(/^http/, "ws"), ws: true },
+      // Demo mode signs with the node's unlocked accounts through the same origin (no CORS to worry about).
+      "/rpc": { target: NODE, changeOrigin: true, rewrite: () => "/" },
     },
   },
   build: { target: "es2022", sourcemap: true },
