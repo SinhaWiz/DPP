@@ -1,8 +1,24 @@
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Shell } from "@/components/layout/Shell";
+import { Explorer, LearnPage, NotFound, Playground, StoragePage, TamperPage } from "@/pages/Pages";
+
+export const AppRoutes = () => (
+  <Routes>
+    <Route element={<Shell />}>
+      <Route index element={<Explorer />} />
+      <Route path="playground" element={<Playground />} />
+      <Route path="storage" element={<StoragePage />} />
+      <Route path="tamper" element={<TamperPage />} />
+      <Route path="learn" element={<LearnPage />} />
+      <Route path="*" element={<NotFound />} />
+    </Route>
+  </Routes>
+);
+
 export function App() {
   return (
-    <main className="p-6">
-      <h1 className="text-xl font-semibold">Ledger Lab</h1>
-      <p className="text-muted">Interactive visualizer for the buy/sell ledger.</p>
-    </main>
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   );
 }
