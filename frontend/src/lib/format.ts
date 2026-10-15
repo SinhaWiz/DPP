@@ -33,8 +33,8 @@ export function formatEth(wei: bigint | string, maxDecimals = 6): string {
 }
 
 /** Thousands separators for a bigint: 1234567 → 1,234,567 */
-export function group(n: bigint | string): string {
-  return BigInt(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+export function group(n: bigint | string | number): string {
+  return BigInt(typeof n === "number" ? Math.trunc(n) : n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
 /** A 32-byte slot value as 8 groups of 8 hex characters, for reading raw storage. */

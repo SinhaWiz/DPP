@@ -1,4 +1,5 @@
 import { useSearchParams } from "react-router-dom";
+import { WriteCost, ReadBack } from "@/components/storage/CostAndReadback";
 import { SlotMaths, SlotView } from "@/components/storage/SlotView";
 import { EmptyState } from "@/components/layout/Panels";
 import { useStorageRecord } from "@/lib/useStorageRecord";
@@ -46,6 +47,8 @@ export function StoragePage() {
             <>
               <SlotView data={data} />
               <SlotMaths data={data} />
+              <WriteCost data={data} />
+              <ReadBack data={data} />
             </>
           )}
         </>

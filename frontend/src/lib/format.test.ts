@@ -49,6 +49,8 @@ describe("group / groupedWord", () => {
     expect(group(999n)).toBe("999");
     expect(group(1000n)).toBe("1,000");
     expect(group("1234567890")).toBe("1,234,567,890");
+    expect(group(22100)).toBe("22,100");
+    expect(group(2643.9)).toBe("2,643"); // gas is whole; a stray fraction must not throw
   });
   it("splits a 32-byte word into 8 groups of 8 hex digits", () => {
     const w = "0x" + "00".repeat(28) + "deadbeef";

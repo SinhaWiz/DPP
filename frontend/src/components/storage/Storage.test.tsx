@@ -120,3 +120,63 @@ describe("StoragePage: choosing a record", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Record #2 not found");
   });
 });
+
+describe("StoragePage: cost and read-back", () => {
+  const allNew = Array.from({ length: 8 }, (_, p) => ({ seq: p, slot: storageRecordFixture("2").slots[p]!.slot, before: "0x0", after: "0x1", gasCost: 22100, kind: "new" as const }));
+  const withWrites = (writes = allNew) => ({
+    ...storageRecordFixture("2"),
+    storageWrites: writes,
+    writtenBy: { hash: "0xh", gasUsed: "300000" } as never,
+  });
+
+  async function mountWith(data: ReturnType<typeof storageRecordFixture>) {
+    const started = await startFakeController({ storageRecord: vi.fn(async () => data) });
+    started.api.setRecords(validChain(5));
+    render(<MemoryRouter initialEntries={["/storage?record=2"]}><AppProviders controller={started.controller}><StoragePage /></AppProviders></MemoryRouter>);
+    await waitFor(() => expect(started.controller.state.loaded).toBe(true));
+  }
+
+  it("itemises the writes with gas and a reason for each, and totals them", async () => {
+    await mountWith(withWrites());
+    const cost = await screen.findByRole("region", { name: "What it cost to store" });
+    const rows = within(cost).getAllByRole("row");
+    expect(rows).toHaveLength(1 + 8 + 1);             // header, eight writes, total
+    expect(within(cost).getAllByText("22,100")).toHaveLength(8);
+    expect(cost).toHaveTextContent("176,800");         // 8 × 22,100
+    expect(cost).toHaveTextContent("59% of the 300,000 gas");
+    expect(cost).toHaveTextContent("20,000 gas to set it plus 2,100");
+  });
+
+  it("compares the cost with an event, and says why storage is still used", async () => {
+    await mountWith(withWrites());
+    const note = await screen.findByRole("complementary", { name: "Storage versus events" });
+    expect(note).toHaveTextContent("2,643 gas");
+    expect(note).toHaveTextContent("67× cheaper");
+    expect(note).toHaveTextContent("a contract cannot read an event");
+  });
+
+  it("explains when there is nothing to itemise", async () => {
+    await mountWith({ ...storageRecordFixture("2"), storageWrites: [], writtenBy: null });
+    expect(await screen.findByText(/No storage writes were recorded/)).toBeInTheDocument();
+  });
+
+  it("reads the record back three ways and says they agree", async () => {
+    await mountWith(withWrites());
+    const section = await screen.findByRole("region", { name: "Three ways to read it back" });
+    expect(within(section).getByRole("article", { name: "Ask the contract" })).toBeInTheDocument();
+    expect(within(section).getByRole("article", { name: "Read the raw storage" })).toBeInTheDocument();
+    const log = within(section).getByRole("article", { name: "Read the event log" });
+    expect(log).toHaveTextContent("independent witness");
+    expect(within(section).getByRole("status", { name: "Read-back result" })).toHaveTextContent("All three agree");
+  });
+
+  it("points at the event log when storage has been rewritten", async () => {
+    const base = withWrites();
+    const bad = "0x" + "bad".padStart(64, "0");
+    await mountWith({ ...base, slots: base.slots.map((s) => (s.position === 7 ? { ...s, actual: bad } : s)), abiRecord: { ...base.abiRecord!, hash: bad } });
+    const result = await screen.findByRole("status", { name: "Read-back result" });
+    expect(result).toHaveTextContent("event log disagrees with storage");
+    expect(result).toHaveTextContent("only the log still holds what was originally written");
+    expect(within(screen.getByRole("article", { name: "Read the event log" })).getByLabelText("differs")).toBeInTheDocument();
+  });
+});
