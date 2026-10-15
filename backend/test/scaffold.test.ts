@@ -3,6 +3,7 @@ import { buildApp } from "../src/app";
 import { Bus } from "../src/bus";
 import { loadConfig } from "../src/config";
 import { createRpc } from "../src/chain/rpc";
+import { createServices } from "../src/services";
 import { DatabaseSync } from "../src/sqlite";
 import { startDevNode, type DevNode } from "@dpp/shared/testing";
 
@@ -54,13 +55,15 @@ describe("bus", () => {
 
 describe("http app", () => {
   it("answers /health and sets CORS for the Vite origin", async () => {
-    const config = loadConfig({}, { LOG_LEVEL: "silent" });
-    const app = await buildApp({ config, bus: new Bus() });
+    const config = loadConfig({}, { LOG_LEVEL: "silent", DB_PATH: ":memory:" });
+    const services = createServices(config, { getDeployment: () => null });
+    const app = await buildApp(services);
     const res = await app.inject({ method: "GET", url: "/health", headers: { origin: "http://localhost:5173" } });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ ok: true, seq: 0 });
     expect(res.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
     await app.close();
+    await services.stop();
   });
 });
 

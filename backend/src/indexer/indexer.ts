@@ -99,6 +99,11 @@ export class Indexer {
     return this.reader ? this.reader.onChainVerdict() : null;
   }
 
+  /** False once the node has shown it cannot trace transactions (revert reasons then come from replaying calls). */
+  get tracing(): boolean {
+    return this.traces.tracing;
+  }
+
   getDecoder(): Decoder | null {
     return this.decoder;
   }

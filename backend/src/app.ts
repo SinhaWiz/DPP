@@ -1,21 +1,16 @@
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
-import type { Bus } from "./bus";
-import type { Config } from "./config";
+import { installErrorHandler } from "./api/errors";
+import { registerLedgerRoutes } from "./api/routes";
+import type { Services } from "./services";
 
-export interface AppContext {
-  config: Config;
-  bus: Bus;
-}
+/** Builds the HTTP server on top of the running services. */
+export async function buildApp(s: Services): Promise<FastifyInstance> {
+  const app = Fastify({ logger: s.config.LOG_LEVEL === "silent" ? false : { level: s.config.LOG_LEVEL } });
+  await app.register(cors, { origin: s.config.CORS_ORIGINS });
+  installErrorHandler(app);
 
-/** Builds the HTTP server. Routes are registered by later phases. */
-export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
-  const app = Fastify({ logger: ctx.config.LOG_LEVEL === "silent" ? false : { level: ctx.config.LOG_LEVEL } });
-  await app.register(cors, { origin: ctx.config.CORS_ORIGINS });
-
-  // BigInt is not JSON-serializable; amounts and indexes are sent as decimal strings.
-  app.addHook("preSerialization", async (_req, _reply, payload) => payload);
-
-  app.get("/health", async () => ({ ok: true, seq: ctx.bus.lastSeq }));
+  app.get("/health", async () => ({ ok: true, seq: s.bus.lastSeq }));
+  registerLedgerRoutes(app, s);
   return app;
 }

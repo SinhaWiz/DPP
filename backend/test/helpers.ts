@@ -1,69 +1,73 @@
+import type { FastifyInstance } from "fastify";
 import { Contract, parseEther } from "ethers";
 import { deployContracts, makeDeployment, startDevNode, type DevNode, type Deployed } from "@dpp/shared/testing";
 import type { Deployment } from "@dpp/shared";
-import { Bus } from "../src/bus";
-import { createRpc, type Rpc } from "../src/chain/rpc";
-import { Repo } from "../src/db/repo";
-import { Indexer } from "../src/indexer/indexer";
-import { silentLogger } from "../src/logger";
-import { VerificationService } from "../src/verification";
-import { MempoolWatcher } from "../src/lifecycle/mempoolWatcher";
+import { buildApp } from "../src/app";
+import { loadConfig } from "../src/config";
+import { createServices, type Services } from "../src/services";
 
-export interface Harness {
+export interface Harness extends Pick<Services, "rpc" | "repo" | "bus" | "indexer" | "verification" | "watcher" | "config"> {
   node: DevNode;
   deployed: Deployed;
   deployment: Deployment;
-  rpc: Rpc;
-  repo: Repo;
-  bus: Bus;
-  indexer: Indexer;
-  verification: VerificationService;
-  watcher: MempoolWatcher;
-  /** Calls a market function as role `signer` (0 = Manufacturer … 4 = Outsider). */
+  services: Services;
+  /** The HTTP app, built on first use. */
+  app: () => Promise<FastifyInstance>;
+  /** GET a path and parse the JSON body. */
+  get: <T = unknown>(url: string) => Promise<{ status: number; body: T }>;
+  /** Calls a market function as role `signer` (0 = Manufacturer … 4 = Outsider) and waits for it. */
   call: (signer: number, fn: string, ...args: unknown[]) => Promise<void>;
   /** Sends a call that is expected to revert, with an explicit gas limit so the node mines it. Returns the tx hash. */
   callFailing: (signer: number, fn: string, ...args: unknown[]) => Promise<string>;
   stop: () => Promise<void>;
 }
 
-/** Starts a real dev node, deploys the contracts and wires an indexer over an in-memory database. */
+/** Starts a real dev node, deploys the contracts and wires the same services the server uses, over an in-memory database. */
 export async function startHarness(opts: { traceStorage?: boolean } = {}): Promise<Harness> {
   const node = await startDevNode();
   const deployed = await deployContracts(node.provider);
   const deployment = await makeDeployment(node.provider, deployed);
-  const rpc = createRpc(node.url);
-  const repo = Repo.open(":memory:");
-  const bus = new Bus();
-  const verification = new VerificationService(repo, bus);
-  const indexer = new Indexer({
-    rpc, repo, bus, log: silentLogger, getDeployment: () => deployment, pollMs: 50, verification,
-    traceStorage: opts.traceStorage ?? true,
+  const config = loadConfig({}, {
+    RPC_URL: node.url, DB_PATH: ":memory:", LOG_LEVEL: "silent", POLL_MS: 50, TRACE_STORAGE: opts.traceStorage ?? true,
   });
-  const watcher = new MempoolWatcher({ rpc, repo, bus, log: silentLogger, indexer });
+  const services = createServices(config, { getDeployment: () => deployment });
   const market = deployed.market;
+
+  let appInstance: FastifyInstance | null = null;
+  const app = async () => (appInstance ??= await buildApp(services));
 
   const send = async (signer: number, fn: string, args: unknown[], overrides: object = {}) =>
     (market.connect(deployed.signers[signer]!) as Contract).getFunction(fn)(...args, overrides);
+  const split = (args: unknown[]) => {
+    const last = args[args.length - 1];
+    const hasOverrides = typeof last === "object" && last !== null && !Array.isArray(last);
+    return { args: hasOverrides ? args.slice(0, -1) : args, overrides: hasOverrides ? (last as object) : {} };
+  };
 
   return {
-    node, deployed, deployment, rpc, repo, bus, indexer, verification, watcher,
-    call: async (signer, fn, ...args) => {
-      const last = args[args.length - 1];
-      const hasOverrides = typeof last === "object" && last !== null && !Array.isArray(last);
-      const tx = await send(signer, fn, hasOverrides ? args.slice(0, -1) : args, hasOverrides ? (last as object) : {});
-      await tx.wait();
+    node, deployed, deployment, services, config,
+    rpc: services.rpc, repo: services.repo, bus: services.bus, indexer: services.indexer,
+    verification: services.verification, watcher: services.watcher,
+    app,
+    get: async (url) => {
+      const res = await (await app()).inject({ method: "GET", url });
+      return { status: res.statusCode, body: res.json() };
     },
-    callFailing: async (signer, fn, ...args) => {
-      const last = args[args.length - 1];
-      const hasOverrides = typeof last === "object" && last !== null && !Array.isArray(last);
-      const tx = await send(signer, fn, hasOverrides ? args.slice(0, -1) : args, { gasLimit: 400_000, ...(hasOverrides ? (last as object) : {}) });
+    call: async (signer, fn, ...rest) => {
+      const { args, overrides } = split(rest);
+      await (await send(signer, fn, args, overrides)).wait();
+    },
+    callFailing: async (signer, fn, ...rest) => {
+      const { args, overrides } = split(rest);
+      const tx = await send(signer, fn, args, { gasLimit: 400_000, ...overrides });
       await tx.wait().catch(() => undefined);
       return tx.hash;
     },
     stop: async () => {
-      await indexer.stop();
-      rpc.destroy();
-      repo.close();
+      await appInstance?.close();
+      await services.indexer.stop();
+      services.rpc.destroy();
+      services.repo.close();
       await node.stop();
     },
   };
