@@ -15,11 +15,6 @@ export const Playground = () => (
     <EmptyState title="Pick a role to start" />
   </Page>
 );
-export const StoragePage = () => (
-  <Page title="Storage" subtitle="Where a record lives in the contract's storage, and what writing it costs.">
-    <EmptyState title="Select a record to inspect its slots" />
-  </Page>
-);
 export const TamperPage = () => (
   <Page title="Tamper Lab" subtitle="Edit stored data on a local chain and watch the defences react.">
     <EmptyState title="Only available on the local development chain" />

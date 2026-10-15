@@ -77,6 +77,7 @@ export function fakeApi(over: Record<string, unknown> = {}) {
       const r = (customRecords ?? validChain(n))[Number(index)]!;
       return { ...r, hashSteps: { fields: [], encoded: "0x", hash: r.hash }, tx: null as ApiTx | null };
     }),
+    storageRecord: vi.fn(async (index: string) => storageRecordFixture(index)),
     trail: vi.fn(async (id: string) => ({
       product: { id, name: "Laptop", owner: ROLES[0]!.address, price: "0", forSale: false, reservation: null },
       steps: (customRecords ?? validChain(n)).filter((r) => r.productId === id).map((record) => ({ record, ownerAfter: ROLES[0]!.address, note: `Step ${record.index}` })),
@@ -123,3 +124,28 @@ export async function startFakeController(apiOver: Record<string, unknown> = {})
 }
 
 export const msg = (type: WsMessage["type"], data: unknown = {}, seq = 1): WsMessage => ({ seq, type, at: 1, data });
+
+/** A storage-explorer response for record `index`, with all eight slots matching. */
+export function storageRecordFixture(index: string, over: { mismatchSlot?: number; abiHash?: string } = {}) {
+  const word = (n: number) => "0x" + n.toString(16).padStart(64, "0");
+  const slots = Array.from({ length: 8 }, (_, position) => {
+    const expected = word(position + 1);
+    const actual = over.mismatchSlot === position ? word(999) : expected;
+    return {
+      position, slot: word(0x290d00 + Number(index) * 8 + position), expected, actual, match: actual === expected,
+      members:
+        position === 3
+          ? [{ name: "action", offset: 0, bytes: 1, decoded: "1" }, { name: "actor", offset: 1, bytes: 20, decoded: ROLES[0]!.address }]
+          : [{ name: ["index", "timestamp", "productId", "", "counterparty", "price", "prevHash", "hash"][position]!, offset: 0, bytes: 32, decoded: String(position) }],
+    };
+  });
+  return {
+    index,
+    baseSlot: word(0x290d00),
+    slots,
+    abiRecord: { hash: over.abiHash ?? word(8), prevHash: word(7), price: "1000000000000000000" },
+    witness: { productId: "1", action: 1, actor: ROLES[0]!.address, prevHash: word(7), hash: word(8) },
+    writtenBy: null as ApiTx | null,
+    storageWrites: [] as { seq: number; slot: string; before: string; after: string; gasCost: number | null; kind: "new" | "update" | "cleared" | "unchanged" }[],
+  };
+}

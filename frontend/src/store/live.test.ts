@@ -126,6 +126,15 @@ describe("LiveController: reacting to messages", () => {
     expect(api.txs).toHaveBeenCalledTimes(1);
   });
 
+  it("bumps the epoch only when history may have changed", () => {
+    const { live } = setup();
+    expect(live.state.epoch).toBe(0);
+    for (const t of ["block.new", "tx.mined", "record.appended", "mining.changed"] as const) live.apply(msg(t));
+    expect(live.state.epoch).toBe(0);
+    for (const t of ["verification.changed", "lab.tampered", "lab.restored", "chain.rewound", "chain.reset"] as const) live.apply(msg(t));
+    expect(live.state.epoch).toBe(5);
+  });
+
   it("remembers the last message for the explanation panel", () => {
     const { live } = setup();
     const m = msg("block.new", { number: 7 });

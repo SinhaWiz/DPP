@@ -34,11 +34,13 @@ export interface LiveState {
   scenario: ScenarioProgress | null;
   /** The last bus message applied, for "what just happened" panels. */
   lastMessage: WsMessage | null;
+  /** Bumped whenever history may have changed under views that cache per-record data (tamper, restore, rewind, reset). */
+  epoch: number;
 }
 
 const INITIAL: LiveState = {
   link: "connecting", error: null, loaded: false, session: null, records: [], recordsTotal: 0, products: [], txs: [], txsTotal: 0,
-  blocks: [], verify: null, balances: null, mining: null, scenario: null, lastMessage: null,
+  blocks: [], verify: null, balances: null, mining: null, scenario: null, lastMessage: null, epoch: 0,
 };
 
 type Kind = "session" | "records" | "recordsFull" | "products" | "txs" | "blocks" | "verify" | "mining" | "balances";
@@ -216,7 +218,10 @@ export class LiveController {
 
   apply(m: WsMessage): void {
     this.set({ lastMessage: m });
-    if (["verification.changed", "lab.tampered", "lab.restored", "chain.rewound", "chain.reset"].includes(m.type)) this.details.clear();
+    if (["verification.changed", "lab.tampered", "lab.restored", "chain.rewound", "chain.reset"].includes(m.type)) {
+      this.details.clear();
+      this.set({ epoch: this.state.epoch + 1 });
+    }
     switch (m.type) {
       case "block.new":
         return this.mark("blocks", "session");

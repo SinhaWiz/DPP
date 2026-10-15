@@ -2,7 +2,8 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Shell } from "@/components/layout/Shell";
 import { AppProviders } from "@/providers";
 import { Explorer } from "@/pages/Explorer";
-import { LearnPage, NotFound, Playground, StoragePage, TamperPage } from "@/pages/Pages";
+import { LearnPage, NotFound, Playground, TamperPage } from "@/pages/Pages";
+import { StoragePage } from "@/pages/Storage";
 
 export const AppRoutes = () => (
   <Routes>
