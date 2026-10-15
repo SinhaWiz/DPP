@@ -3,7 +3,9 @@ import { BlockTooltip } from "@/components/chain/BlockTooltip";
 import { ChainControls } from "@/components/chain/ChainControls";
 import { ChainStrip, type ChainStripHandle } from "@/components/chain/ChainStrip";
 import { Minimap } from "@/components/chain/Minimap";
+import { ProductTimeline } from "@/components/chain/ProductTimeline";
 import { RecordDetail } from "@/components/chain/RecordDetail";
+import { useProductTrail } from "@/lib/useProductTrail";
 import { Tooltip } from "@/components/common/Tooltip";
 import { EmptyState } from "@/components/layout/Panels";
 import { useBrowserVerification } from "@/lib/useVerification";
@@ -21,6 +23,7 @@ export function Explorer() {
   const [showBlocks, setShowBlocks] = useState(false);
   const [visible, setVisible] = useState<[number, number] | undefined>();
 
+  const { trail } = useProductTrail(productFilter);
   const selectedRecord = selected === null ? null : (records.find((r) => BigInt(r.index) === selected) ?? null);
 
   const jump = (i: number) => {
@@ -66,6 +69,8 @@ export function Explorer() {
           </div>
         </>
       )}
+
+      {trail && <div className="mt-4"><ProductTimeline trail={trail} selected={selected} onSelect={(i) => jump(Number(i))} /></div>}
 
       {selectedRecord && (
         <RecordDetail

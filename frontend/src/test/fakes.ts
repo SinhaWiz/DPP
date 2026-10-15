@@ -77,6 +77,10 @@ export function fakeApi(over: Record<string, unknown> = {}) {
       const r = (customRecords ?? validChain(n))[Number(index)]!;
       return { ...r, hashSteps: { fields: [], encoded: "0x", hash: r.hash }, tx: null as ApiTx | null };
     }),
+    trail: vi.fn(async (id: string) => ({
+      product: { id, name: "Laptop", owner: ROLES[0]!.address, price: "0", forSale: false, reservation: null },
+      steps: (customRecords ?? validChain(n)).filter((r) => r.productId === id).map((record) => ({ record, ownerAfter: ROLES[0]!.address, note: `Step ${record.index}` })),
+    })),
     products: vi.fn(async () => ({ products: [] })),
     txs: vi.fn(async () => ({ total: 0, txs: [] })),
     blocks: vi.fn(async () => ({ blocks: [] })),
