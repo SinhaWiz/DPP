@@ -182,6 +182,21 @@ describe("Repo", () => {
     expect(repo.getMeta("schema_version")).toBe("1");
   });
 
+  it("joins nested transactions, rolling everything back if the outer one fails", () => {
+    expect(() =>
+      repo.transaction(() => {
+        repo.upsertRecord(rec(0));
+        repo.replaceStorageWrites(H(1), [{ seq: 0, slot: H(1), before: H(0), after: H(1), gasCost: 1 }]); // has its own transaction
+        throw new Error("outer failed");
+      }),
+    ).toThrow("outer failed");
+    expect(repo.recordCount()).toBe(0);
+    expect(repo.storageWritesForTx(H(1))).toEqual([]);
+    // and the repository is still usable afterwards
+    repo.transaction(() => repo.upsertRecord(rec(0)));
+    expect(repo.recordCount()).toBe(1);
+  });
+
   it("rolls back a failed transaction", () => {
     expect(() => repo.transaction(() => { repo.upsertRecord(rec(0)); throw new Error("nope"); })).toThrow("nope");
     expect(repo.recordCount()).toBe(0);

@@ -131,9 +131,16 @@ export class Repo {
     this.db.close();
   }
 
-  /** Runs `fn` in a transaction: all or nothing. */
+  private depth = 0;
+
+  /**
+   * Runs `fn` in a transaction: all or nothing. Re-entrant: a call made inside another joins it, so
+   * an error anywhere rolls back the whole outer unit of work.
+   */
   transaction<T>(fn: () => T): T {
+    if (this.depth > 0) return fn();
     this.db.exec("begin");
+    this.depth = 1;
     try {
       const result = fn();
       this.db.exec("commit");
@@ -141,6 +148,8 @@ export class Repo {
     } catch (e) {
       this.db.exec("rollback");
       throw e;
+    } finally {
+      this.depth = 0;
     }
   }
 

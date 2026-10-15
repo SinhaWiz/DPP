@@ -1,10 +1,12 @@
 import type { Deployment } from "@dpp/shared";
 import type { Bus } from "../bus";
 import type { Rpc } from "../chain/rpc";
-import type { RecordRow, Repo, TxRow } from "../db/repo";
+import type { RecordRow, Repo, StorageWriteRow, TxRow } from "../db/repo";
 import type { Logger } from "../logger";
 import { type RawBlock, type RawReceipt, toBig, toHexQuantity, toNumber } from "./rawTypes";
+import { explainRevert } from "@dpp/shared";
 import { LedgerReader } from "./ledgerReader";
+import { TraceReader } from "./traceReader";
 import { decodeCall, decodeLog, makeDecoder, sameAddress, type Decoder } from "./txDecoder";
 import type { VerificationService } from "../verification";
 
@@ -62,13 +64,16 @@ export class Indexer {
   private blockReceiptsSupported = true;
   private lastHead: number | null = null;
   private reader: LedgerReader | null = null;
+  private readonly traces: TraceReader;
   /** Product ids whose on-chain state must be re-read. */
   private dirtyProducts = new Set<number>();
   private allProductsDirty = true;
   /** Number of records in the index before the latest sync (for incremental verification). */
   private recordsBefore = 0;
 
-  constructor(private readonly d: IndexerDeps) {}
+  constructor(private readonly d: IndexerDeps) {
+    this.traces = new TraceReader(d.rpc);
+  }
 
   // ───────────────────────── public API ─────────────────────────
 
@@ -246,6 +251,9 @@ export class Indexer {
     const minedAt = live ? Date.now() : timestamp * 1000;
 
     const txRows: TxRow[] = [];
+    const storageRows = new Map<string, Omit<StorageWriteRow, "txHash">[]>();
+    /** Storage values left by earlier transactions of this block, so "before" is exact in shared blocks. */
+    const blockState = new Map<string, string>();
     const eventRows: Parameters<Repo["insertEvent"]>[0][] = [];
 
     for (const t of block.transactions) {
@@ -282,6 +290,23 @@ export class Indexer {
         minedAt,
       });
 
+      const row = txRows[txRows.length - 1]!;
+      if (call) {
+        if (status === 0) {
+          const revert = await this.traces.revertFor(t, n);
+          if (revert.data) {
+            const why = explainRevert(revert.data);
+            row.revertData = revert.data;
+            row.revertName = why.name;
+            row.revertArgs = why.args;
+          }
+          row.revertApprox = revert.approx;
+        } else if (this.d.traceStorage !== false && call.contract === "market") {
+          const writes = await this.traces.storageWrites(t.hash);
+          if (writes) storageRows.set(t.hash, await this.withBefore(writes, n, blockState));
+        }
+      }
+
       for (const log of receipt.logs) {
         const decoded = decodeLog(dec, log);
         if (!decoded) continue;
@@ -296,6 +321,7 @@ export class Indexer {
       repo.upsertBlock({ number: n, hash: block.hash, parentHash: block.parentHash, timestamp, txCount: block.transactions.length });
       for (const row of txRows) repo.upsertTx(row);
       for (const e of eventRows) repo.insertEvent(e);
+      for (const [hash, rows] of storageRows) repo.replaceStorageWrites(hash, rows);
     });
     for (const e of eventRows) {
       const id = e.args.productId;
@@ -309,6 +335,26 @@ export class Indexer {
       });
     }
     return { txs: txRows.length, events: eventRows.length };
+  }
+
+  /** Adds the value each slot held before the write, tracking earlier writes in the same block. */
+  private async withBefore(
+    writes: { slot: string; after: string; gasCost: number }[],
+    blockNumber: number,
+    blockState: Map<string, string>,
+  ): Promise<Omit<StorageWriteRow, "txHash">[]> {
+    const address = this.deployment!.contracts.market.address;
+    const rows: Omit<StorageWriteRow, "txHash">[] = [];
+    for (const [seq, w] of writes.entries()) {
+      let before = blockState.get(w.slot);
+      if (before === undefined) {
+        const raw = await this.d.rpc.send<string>("eth_getStorageAt", [address, w.slot, toHexQuantity(Math.max(0, blockNumber - 1))]);
+        before = "0x" + raw.replace(/^0x/, "").padStart(64, "0");
+      }
+      rows.push({ seq, slot: w.slot, before, after: w.after, gasCost: w.gasCost });
+      blockState.set(w.slot, w.after);
+    }
+    return rows;
   }
 
   // ───────────────────────── ledger and products ─────────────────────────
