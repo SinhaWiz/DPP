@@ -24,6 +24,14 @@ describe("computeNotices", () => {
     expect(computeNotices({ ...base, link: "offline", loaded: true })[0]!.title).toBe("Lost the connection to the backend");
   });
 
+  it("describes a read-only view as a warning, not an error, when the browser is reading the node directly", () => {
+    const n = computeNotices({ ...base, link: "offline", direct: true })[0]!;
+    expect(n).toMatchObject({ id: "direct-mode", level: "warning", title: "Backend offline: read-only view", action: { kind: "retry" } });
+    expect(n.body).toContain("straight from the node");
+    expect(n.body).toContain("npm run dev:backend");
+    expect(computeNotices({ ...base, link: "live", direct: true })).toEqual([]);
+  });
+
   it("does not also complain about the node when the backend itself is down", () => {
     expect(ids({ link: "offline", session: session({}, { state: "waiting-for-node", message: "x" }) })).toEqual(["backend-offline"]);
   });

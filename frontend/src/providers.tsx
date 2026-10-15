@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createApi } from "@/api/client";
+import { fetchDeployment, loadDirect } from "@/lib/direct";
+import { defaultRpcUrl } from "@/web3/wallet";
 import { RolesProvider } from "@/lib/roles";
 import { setTxFlow } from "@/store/flowInstance";
 import { narrate } from "@/lib/narration";
@@ -60,7 +62,14 @@ function startNarration(live: LiveController): void {
  */
 export function AppProviders({ children, controller, flow }: { children: ReactNode; controller?: LiveController; flow?: TxFlow }) {
   const [live] = useState(() => {
-    const c = controller ?? new LiveController({ api: createApi() });
+    const c = controller ?? new LiveController({
+      api: createApi(),
+      directPollMs: 2500,
+      direct: async () => {
+        const deployment = await fetchDeployment();
+        return deployment ? loadDirect(defaultRpcUrl(), deployment) : null;
+      },
+    });
     setLiveController(c);
     return c;
   });

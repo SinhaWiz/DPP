@@ -14,7 +14,7 @@ const ICON: Record<Notice["level"], string> = { error: "✘", warning: "!", info
 
 /** Messages about the connection, the network and the chain's history that a learner needs to see. */
 export function Notices() {
-  const { link, loaded, session, lastMessage } = useLive((s) => ({ link: s.link, loaded: s.loaded, session: s.session, lastMessage: s.lastMessage }));
+  const { link, loaded, session, lastMessage, direct } = useLive((s) => ({ link: s.link, loaded: s.loaded, session: s.session, lastMessage: s.lastMessage, direct: s.direct }));
   const { comparison } = useBrowserVerification();
   const { chainId: walletChainId, switchNetwork } = useWallet();
   const [dismissed, setDismissed] = useState<Record<string, number | undefined>>({});
@@ -25,7 +25,7 @@ export function Notices() {
   if (lastMessage?.type === "chain.reset" && lastMessage.seq !== lastReset?.seq) setLastReset(lastMessage);
   if (lastMessage?.type === "chain.rewound" && lastMessage.seq !== lastRewind?.seq) setLastRewind(lastMessage);
 
-  const notices = computeNotices({ link, loaded, session, walletChainId, lastReset, lastRewind, comparison }).filter(
+  const notices = computeNotices({ link, loaded, session, walletChainId, lastReset, lastRewind, comparison, direct }).filter(
     (n) => !(n.dismissible && dismissed[n.id] === (n.version ?? 0)),
   );
   if (notices.length === 0) return null;

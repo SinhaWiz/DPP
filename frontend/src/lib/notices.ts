@@ -25,13 +25,21 @@ export interface NoticeInput {
   lastReset: WsMessage | null;
   lastRewind: WsMessage | null;
   comparison: Comparison | null;
+  /** The backend is down but the browser is reading the node directly. */
+  direct?: boolean;
 }
 
 /** Turns the app's state into the problems and events a learner needs to hear about, most urgent first. */
 export function computeNotices(i: NoticeInput): Notice[] {
   const out: Notice[] = [];
 
-  if (i.link === "offline") {
+  if (i.link === "offline" && i.direct) {
+    out.push({
+      id: "direct-mode", level: "warning", dismissible: false, title: "Backend offline: read-only view",
+      body: "The page is reading the chain straight from the node and checking it in your browser. Transaction history, the mempool and the lab need the backend: start it with `npm run dev:backend` and it reconnects on its own.",
+      action: { label: "Try again", kind: "retry" },
+    });
+  } else if (i.link === "offline") {
     out.push({
       id: "backend-offline", level: "error", dismissible: false,
       title: i.loaded ? "Lost the connection to the backend" : "Can't reach the backend",

@@ -4,6 +4,7 @@ import { useShallow } from "zustand/react/shallow";
 import type { ApiBalances, ApiBlock, ApiMiningState, ApiProduct, ApiRecord, ApiRecordDetail, ApiSession, ApiTx, ApiVerify, WsHello, WsMessage } from "@dpp/shared";
 import { ApiError, type Api } from "@/api/client";
 import { LiveSocket, defaultSocketUrl, type SocketStatus } from "@/api/socket";
+import type { DirectSnapshot } from "@/lib/direct";
 
 export type Link = "connecting" | "live" | "offline";
 
@@ -34,13 +35,15 @@ export interface LiveState {
   scenario: ScenarioProgress | null;
   /** The last bus message applied, for "what just happened" panels. */
   lastMessage: WsMessage | null;
+  /** The backend is down and this is what the browser read straight from the node (read-only). */
+  direct: boolean;
   /** Bumped whenever history may have changed under views that cache per-record data (tamper, restore, rewind, reset). */
   epoch: number;
 }
 
 const INITIAL: LiveState = {
   link: "connecting", error: null, loaded: false, session: null, records: [], recordsTotal: 0, products: [], txs: [], txsTotal: 0,
-  blocks: [], verify: null, balances: null, mining: null, scenario: null, lastMessage: null, epoch: 0,
+  blocks: [], verify: null, balances: null, mining: null, scenario: null, lastMessage: null, epoch: 0, direct: false,
 };
 
 type Kind = "session" | "records" | "recordsFull" | "products" | "txs" | "blocks" | "verify" | "mining" | "balances";
@@ -53,6 +56,12 @@ export interface LiveDeps {
   createSocket?: (handlers: ConstructorParameters<typeof LiveSocket>[0]["handlers"]) => LiveSocket;
   /** Waits before refetching so a burst of messages causes one refresh. */
   debounceMs?: number;
+  /** Reads the chain without the backend; used while the backend is unreachable. */
+  direct?: () => Promise<DirectSnapshot | null>;
+  /** How often to re-read in direct mode. */
+  directPollMs?: number;
+  setTimer?: typeof setInterval;
+  clearTimer?: typeof clearInterval;
 }
 
 /**
@@ -68,6 +77,7 @@ export class LiveController {
   private flushing: Promise<void> | null = null;
   private running = false;
   private details = new Map<string, Promise<ApiRecordDetail>>();
+  private directTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly d: LiveDeps) {}
 
@@ -121,6 +131,7 @@ export class LiveController {
     this.running = false;
     this.socket?.stop();
     this.socket = null;
+    this.stopDirect();
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
   }
@@ -159,11 +170,46 @@ export class LiveController {
       if (wants.has("balances")) tasks.push(api.balances().then((balances) => this.set({ balances })));
       await Promise.all(tasks);
       if (wants.has("session") || wants.has("mining")) await this.loadMining();
-      this.set({ link: this.socket?.state === "closed" ? "offline" : "live", error: null, loaded: true });
+      this.stopDirect();
+      this.set({ link: this.socket?.state === "closed" ? "offline" : "live", error: null, loaded: true, direct: false });
     } catch (e) {
-      if (e instanceof ApiError && e.unreachable) this.set({ link: "offline", error: e.message });
+      if (e instanceof ApiError && e.unreachable) await this.fallBackToDirect(e.message);
       else this.set({ error: e instanceof Error ? e.message : String(e) });
     }
+  }
+
+  // ───────────────────────── read-only fallback ─────────────────────────
+
+  private async readDirect(): Promise<boolean> {
+    if (!this.d.direct) return false;
+    try {
+      const snap = await this.d.direct();
+      if (!snap) return false;
+      this.set({
+        session: snap.session, records: snap.records, recordsTotal: snap.records.length, products: snap.products,
+        txs: [], txsTotal: 0, blocks: [], verify: null, mining: null, balances: null, loaded: true, direct: true, link: "offline", error: null,
+        epoch: this.state.epoch + 1,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** The backend cannot be reached: show what the node itself holds, and keep re-reading until the backend is back. */
+  private async fallBackToDirect(message: string): Promise<void> {
+    if (await this.readDirect()) {
+      if (!this.directTimer && this.d.directPollMs) {
+        this.directTimer = (this.d.setTimer ?? setInterval)(() => void this.readDirect(), this.d.directPollMs);
+      }
+      return;
+    }
+    this.set({ link: "offline", error: message, direct: false });
+  }
+
+  private stopDirect(): void {
+    if (this.directTimer) (this.d.clearTimer ?? clearInterval)(this.directTimer);
+    this.directTimer = null;
   }
 
   /** Mining mode comes from the lab, which only exists on the local chain. */
