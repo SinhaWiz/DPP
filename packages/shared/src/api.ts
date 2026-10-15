@@ -291,3 +291,33 @@ export const ROUTES: RouteSpec[] = [
   { method: "get", path: "/api/verify", summary: "Off-chain verdict next to the contract's verifyLedger / auditRange", response: VerifySchema, tag: "ledger" },
   { method: "get", path: "/api/storage/records/{index}", summary: "Raw storage slots of a record next to their decoded values", response: StorageRecordSchema, tag: "ledger" },
 ];
+
+// ── WebSocket protocol ──
+//
+// Connect to /ws, optionally with ?since=<seq>. The first message is always a `hello`. Every later
+// message is a bus message { seq, type, at, data } with a strictly increasing `seq`. After a
+// disconnect, reconnect with the last `seq` seen; if `hello.refetch` is true the server cannot replay
+// that far back (or restarted), and the client must reload its data over REST instead.
+
+export const WsHelloSchema = z.object({
+  type: z.literal("hello"),
+  seq: z.number().int().describe("Latest sequence number at connect time"),
+  refetch: z.boolean().describe("true: nothing was replayed; reload everything over REST"),
+  replayed: z.number().int().describe("Number of missed messages sent right after this one"),
+  serverTime: z.number(),
+});
+export type WsHello = z.infer<typeof WsHelloSchema>;
+
+export const WS_MESSAGE_TYPES = [
+  "block.new", "tx.pending", "tx.mined", "tx.failed", "tx.replaced", "tx.dropped", "record.appended",
+  "verification.changed", "chain.rewound", "chain.reset", "lab.tampered", "lab.restored", "mining.changed", "indexer.status",
+] as const;
+export type WsMessageType = (typeof WS_MESSAGE_TYPES)[number];
+
+export const WsMessageSchema = z.object({
+  seq: z.number().int(),
+  type: z.enum(WS_MESSAGE_TYPES),
+  at: z.number(),
+  data: z.unknown(),
+});
+export type WsMessage = z.infer<typeof WsMessageSchema>;

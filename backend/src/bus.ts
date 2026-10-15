@@ -54,6 +54,10 @@ export class Bus {
     return () => this.listeners.delete(listener);
   }
 
+  get listenerCount(): number {
+    return this.listeners.size;
+  }
+
   get lastSeq(): number {
     return this.seq;
   }
