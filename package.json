@@ -15,7 +15,9 @@
     "dev:backend": "npm run dev -w @dpp/backend",
     "dev:web": "npm run dev -w @dpp/frontend",
     "dev": "concurrently -k -n node,backend,web \"npm:dev:node\" \"wait-on tcp:8545 && npm run dev:deploy && npm run dev:seed && npm run dev:backend\" \"wait-on tcp:4000 && npm run dev:web\"",
-    "test:all": "npm test && npm test -w @dpp/shared && npm test -w @dpp/backend"
+    "test:all": "npm test && npm test -w @dpp/shared && npm test -w @dpp/backend",
+    "export:abi": "hardhat run scripts/export-abi.js",
+    "export:fixture": "hardhat run scripts/export-fixture.js"
   },
   "keywords": [],
   "author": "",

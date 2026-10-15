@@ -90,4 +90,4 @@ function readDeployment() {
   return JSON.parse(fs.readFileSync(OUTPUT, "utf8"));
 }
 
-module.exports = { deployAll, readDeployment, OUTPUT, ROLES };
+module.exports = { deployAll, readDeployment, readStorageLayout, OUTPUT, ROLES };
