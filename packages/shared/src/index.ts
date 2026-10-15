@@ -4,3 +4,4 @@ export * from "./status";
 export * from "./abi";
 export * from "./hashRecipe";
 export * from "./verifyEngine";
+export * from "./errorExplainer";
