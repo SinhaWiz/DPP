@@ -8,7 +8,14 @@
     "simulate": "hardhat run scripts/simulate.js",
     "node": "hardhat node",
     "deploy": "hardhat run scripts/deploy.js --network localhost",
-    "clean": "hardhat clean"
+    "clean": "hardhat clean",
+    "dev:node": "DEV_NODE=1 hardhat node --hostname 127.0.0.1",
+    "dev:deploy": "DEV_NODE=1 hardhat run scripts/deploy.js --network localhost",
+    "dev:seed": "DEV_NODE=1 hardhat run scripts/seed.js --network localhost",
+    "dev:backend": "npm run dev -w @dpp/backend",
+    "dev:web": "npm run dev -w @dpp/frontend",
+    "dev": "concurrently -k -n node,backend,web \"npm:dev:node\" \"wait-on tcp:8545 && npm run dev:deploy && npm run dev:seed && npm run dev:backend\" \"wait-on tcp:4000 && npm run dev:web\"",
+    "test:all": "npm test && npm test -w @dpp/shared && npm test -w @dpp/backend"
   },
   "keywords": [],
   "author": "",
@@ -16,6 +23,13 @@
   "type": "commonjs",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "^2.29.1"
-  }
+    "concurrently": "^10.0.6",
+    "hardhat": "^2.29.1",
+    "wait-on": "^9.5.1"
+  },
+  "workspaces": [
+    "packages/*",
+    "backend",
+    "frontend"
+  ]
 }

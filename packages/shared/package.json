@@ -1,0 +1,16 @@
+{
+  "name": "@dpp/shared",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Domain logic shared by the backend and the frontend (hash recipe, verification, error decoding, storage layout)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": { "ethers": "^6.13.0" },
+  "devDependencies": { "typescript": "^5.6.0", "vitest": "^2.1.0" }
+}

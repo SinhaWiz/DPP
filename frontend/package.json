@@ -1,0 +1,8 @@
+{
+  "name": "@dpp/frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interactive visualizer for the buy/sell ledger",
+  "type": "module",
+  "scripts": {}
+}

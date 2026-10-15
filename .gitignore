@@ -19,3 +19,11 @@ states/
 # Optional
 .env
 .env.local
+
+# Workspaces / build output
+**/dist/
+backend/data/*.sqlite*
+playwright-report/
+test-results/
+packages/shared/src/generated/
+.DS_Store
