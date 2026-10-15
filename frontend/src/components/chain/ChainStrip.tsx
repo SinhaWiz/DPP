@@ -3,6 +3,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import type { ApiRecord, VerificationResult } from "@dpp/shared";
 import { useSelection } from "@/store/selection";
 import { BlockCard, CARD_W, CARD_W_COMPACT, LINK_W } from "./BlockCard";
+import { FreshWrapper, useFreshRecords } from "./Fresh";
 import { ChainLink, GenesisMarker } from "./ChainLink";
 
 const GENESIS_W = 120;
@@ -21,6 +22,8 @@ export interface ChainStripProps {
   compact?: boolean;
   /** Show which Ethereum block each record was written in (the chain underneath the ledger). */
   showBlocks?: boolean;
+  /** Animate records that arrive after the view was first shown. */
+  animate?: boolean;
   /** Reports the range of records on screen. */
   onVisibleRange?: (range: [number, number]) => void;
 }
@@ -35,10 +38,11 @@ export interface ChainStripHandle {
  * thousand records are as cheap as ten. It follows the newest record until you scroll away.
  */
 export const ChainStrip = forwardRef<ChainStripHandle, ChainStripProps>(function ChainStrip(
-  { records, verification, renderCard, initialWidth = 1200, compact = false, showBlocks = false, onVisibleRange },
+  { records, verification, renderCard, initialWidth = 1200, compact = false, showBlocks = false, animate = true, onVisibleRange },
   handle,
 ) {
   const cardW = compact ? CARD_W_COMPACT : CARD_W;
+  const fresh = useFreshRecords(records, animate);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { selected, select, productFilter } = useSelection();
   const [focus, setFocus] = useState(0);
@@ -172,14 +176,16 @@ export const ChainStrip = forwardRef<ChainStripHandle, ChainStripProps>(function
                           dimmed={filtered !== null && rec!.productId !== filtered}
                           focusable={focus === idx}
                           compact={compact}
+                          fresh={fresh.has(rec!.index)}
                           data-record={idx}
                           onFocus={() => setFocus(idx)}
                           onSelect={() => select(BigInt(rec!.index))}
                         />
                       );
-                      return renderCard ? renderCard(card, rec!) : card;
+                      const wrapped = renderCard ? renderCard(card, rec!) : card;
+                      return <FreshWrapper fresh={fresh.has(rec!.index)}>{wrapped}</FreshWrapper>;
                     })()}
-                    {idx < records.length - 1 && <ChainLink ok={linkOk[idx + 1] ?? true} from={BigInt(rec!.index)} />}
+                    {idx < records.length - 1 && <ChainLink ok={linkOk[idx + 1] ?? true} from={BigInt(rec!.index)} fresh={fresh.has(records[idx + 1]!.index)} />}
                   </>
                 )}
                 </div>

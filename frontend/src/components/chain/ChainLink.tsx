@@ -1,3 +1,5 @@
+import { motion } from "framer-motion";
+import { usePrefersReducedMotion } from "@/lib/useReducedMotion";
 import { LINK_W } from "./BlockCard";
 
 export interface ChainLinkProps {
@@ -6,10 +8,15 @@ export interface ChainLinkProps {
   /** Index of the record on the left. */
   from: bigint | null;
   highlighted?: boolean;
+  /** The link was just formed: draw it in. */
+  fresh?: boolean;
 }
 
 /** The connector between two blocks. Green and solid when the hashes match; red and dashed when they don't. */
-export function ChainLink({ ok, from, highlighted = false }: ChainLinkProps) {
+export function ChainLink({ ok, from, highlighted = false, fresh = false }: ChainLinkProps) {
+  const reduce = usePrefersReducedMotion();
+  const Line = fresh && !reduce ? motion.line : "line";
+  const drawProps = fresh && !reduce ? { initial: { pathLength: 0 }, animate: { pathLength: 1 }, transition: { duration: 0.6, delay: 0.5 } } : {};
   const color = ok ? "var(--status-intact)" : "var(--status-data)";
   const label = from === null ? "genesis link" : `prevHash equals hash of #${from}`;
   return (
@@ -21,9 +28,10 @@ export function ChainLink({ ok, from, highlighted = false }: ChainLinkProps) {
       style={{ width: LINK_W }}
     >
       <svg width={LINK_W} height="24" viewBox={`0 0 ${LINK_W} 24`} aria-hidden>
-        <line
+        <Line
           x1="2" y1="12" x2={LINK_W - 8} y2="12" stroke={color} strokeWidth={highlighted ? 4 : 2.5}
-          strokeDasharray={ok ? undefined : "5 4"} strokeLinecap="round"
+          strokeDasharray={ok ? undefined : "5 4"} strokeLinecap="round" data-fresh={fresh || undefined}
+          {...(drawProps as object)}
         />
         {ok ? (
           <path d={`M${LINK_W - 12} 7 L${LINK_W - 3} 12 L${LINK_W - 12} 17`} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />

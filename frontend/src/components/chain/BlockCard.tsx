@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
 import { ACTION_META, VERIFICATION_META, type ApiRecord, type RecordCheck } from "@dpp/shared";
 import { formatEth, shortHash } from "@/lib/format";
+import { ScrambleText } from "./Fresh";
 
 export const CARD_W = 208;
 export const CARD_W_COMPACT = 124;
@@ -27,6 +28,8 @@ export interface BlockCardProps {
   focusable?: boolean;
   /** Smaller card for seeing many records at once. */
   compact?: boolean;
+  /** The record just arrived: play the "linking and hashing" animation. */
+  fresh?: boolean;
   onSelect?: () => void;
 }
 
@@ -35,7 +38,7 @@ export interface BlockCardProps {
  * it to its neighbours. Colour and an icon both show whether it passed verification.
  */
 export const BlockCard = forwardRef<HTMLButtonElement, BlockCardProps & React.ButtonHTMLAttributes<HTMLButtonElement>>(function BlockCard(
-  { record, check, selected = false, dimmed = false, focusable = true, compact = false, onSelect, className = "", ...rest },
+  { record, check, selected = false, dimmed = false, focusable = true, compact = false, fresh = false, onSelect, className = "", ...rest },
   ref,
 ) {
   const meta = ACTION_META[record.action as keyof typeof ACTION_META];
@@ -78,9 +81,11 @@ export const BlockCard = forwardRef<HTMLButtonElement, BlockCardProps & React.Bu
 
       <span className={`mt-auto grid grid-cols-[auto_1fr] gap-x-2 border-t border-border bg-surface-2 px-3 py-1.5 font-mono leading-tight ${compact ? "text-[9px]" : "text-[11px]"}`}>
         <span className="text-muted">prev</span>
-        <span className={check && !check.linkOk ? "text-tampered" : ""}>{compact ? shortHash(record.prevHash, 3, 2) : shortHash(record.prevHash)}</span>
+        <span className={`${check && !check.linkOk ? "text-tampered" : ""} ${fresh ? "rounded bg-accent/20" : ""}`} data-fresh-prev={fresh || undefined}>
+          {compact ? shortHash(record.prevHash, 3, 2) : shortHash(record.prevHash)}
+        </span>
         <span className="text-muted">hash</span>
-        <span className={check && !check.dataOk ? "text-tampered" : check?.anchorOk === false ? "text-anchor" : ""}>{compact ? shortHash(record.hash, 3, 2) : shortHash(record.hash)}</span>
+        <span className={check && !check.dataOk ? "text-tampered" : check?.anchorOk === false ? "text-anchor" : ""}>{fresh ? <ScrambleText value={compact ? shortHash(record.hash, 3, 2) : shortHash(record.hash)} active /> : compact ? shortHash(record.hash, 3, 2) : shortHash(record.hash)}</span>
       </span>
 
       {status !== "intact" && (
