@@ -99,6 +99,11 @@ export class Indexer {
     return this.reader ? this.reader.records(offset, limit) : [];
   }
 
+  /** What the contract says about records [from, to). */
+  async onChainRange(from: number, to: number) {
+    return this.reader ? this.reader.verifyRange(from, to) : null;
+  }
+
   /** Wei an account can pull with `withdraw()` right now. */
   async pendingWithdrawals(account: string): Promise<bigint> {
     return this.reader ? this.reader.pendingWithdrawals(account) : 0n;

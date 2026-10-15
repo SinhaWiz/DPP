@@ -32,6 +32,15 @@ export class LedgerReader {
     return { product: toProduct(p), reservation: reservation.buyer === ZERO_ADDRESS ? null : reservation };
   }
 
+  /** `verifyRange` and `auditRange` for [from, to). Reverts with InvalidRange for a bad range. */
+  async verifyRange(from: number, to: number): Promise<{ valid: boolean; brokenAt: bigint; audit: { brokenIndexes: bigint[]; reasons: number[] } }> {
+    const [verdict, audit] = await Promise.all([
+      this.call<[boolean, bigint]>("verifyRange", from, to),
+      this.call<[bigint[], bigint[]]>("auditRange", from, to),
+    ]);
+    return { valid: verdict[0], brokenAt: verdict[1], audit: { brokenIndexes: [...audit[0]], reasons: audit[1].map(Number) } };
+  }
+
   async pendingWithdrawals(account: string): Promise<bigint> {
     return this.call<bigint>("pendingWithdrawals", account);
   }

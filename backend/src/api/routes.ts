@@ -2,8 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
   ACTION_META, BlocksQuery, compareWithContract, explainHash, ledgerBaseSlot, makeAddressLabeler, recordSlotViews, RecordsQuery,
-  TxsQuery, word, type ApiProduct, type ApiProductTrail, type ApiRecord, type ApiRecordDetail, type ApiSession,
-  type ApiBalances, type ApiStorageRecord, type ApiTxDetail, type ApiVerify,
+  TxsQuery, VerifyRangeQuery, word, type ApiProduct, type ApiProductTrail, type ApiRecord, type ApiRecordDetail, type ApiSession,
+  type ApiBalances, type ApiVerifyRange, type ApiStorageRecord, type ApiTxDetail, type ApiVerify,
 } from "@dpp/shared";
 import type { Services } from "../services";
 import { labAvailability } from "../lab/guard";
@@ -185,6 +185,30 @@ export function registerChainRoutes(app: FastifyInstance, s: Services): void {
           }
         : null,
       comparison: verdict ? compareWithContract(s.verification.get(), verdict) : null,
+    };
+  });
+
+  // ── verifyRange: the contract's check of a slice, next to ours ──
+  app.get("/api/verify/range", async (req): Promise<ApiVerifyRange> => {
+    const { from, to } = VerifyRangeQuery.parse(req.query);
+    const length = s.repo.recordCount();
+    if (from > to || to > length) throw badRequest(`Invalid range [${from}, ${to}): it must satisfy from ≤ to ≤ ${length} (the ledger length)`);
+
+    const contract = await s.indexer.onChainRange(from, to);
+    if (!contract) throw notFound("A deployed contract");
+    const checks = s.verification.get().checks.slice(from, to);
+    return {
+      from, to,
+      contract: {
+        valid: contract.valid,
+        brokenAt: contract.brokenAt.toString(),
+        audit: { brokenIndexes: contract.audit.brokenIndexes.map(String), reasons: contract.audit.reasons },
+      },
+      offChain: {
+        valid: checks.every((c) => c.status === "intact"),
+        brokenIndexes: checks.filter((c) => c.status !== "intact").map((c) => c.index.toString()),
+        contractVisibleIndexes: checks.filter((c) => c.onChainStatus !== "intact").map((c) => c.index.toString()),
+      },
     };
   });
 

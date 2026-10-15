@@ -225,6 +225,24 @@ export const VerifySchema = z.object({
   comparison: z.object({ agree: z.boolean(), contractFooled: z.boolean(), notes: z.array(z.string()) }).nullable(),
 });
 
+export const VerifyRangeSchema = z.object({
+  from: z.number().int(),
+  to: z.number().int(),
+  contract: z.object({
+    valid: z.boolean(),
+    brokenAt: decimal.describe("first broken record in the range, as verifyRange reports it"),
+    audit: z.object({ brokenIndexes: z.array(decimal), reasons: z.array(z.number().int()) }),
+  }),
+  offChain: z.object({
+    valid: z.boolean().describe("every record in the range passes data, link and event-log checks"),
+    brokenIndexes: z.array(decimal),
+    contractVisibleIndexes: z.array(decimal).describe("the subset the contract itself can see (data or link only)"),
+  }),
+});
+export type ApiVerifyRange = z.infer<typeof VerifyRangeSchema>;
+
+export const VerifyRangeQuery = z.object({ from: z.coerce.number().int().min(0), to: z.coerce.number().int().min(0) });
+
 export const StorageRecordSchema = z.object({
   index: decimal,
   baseSlot: hex32,
@@ -356,6 +374,7 @@ export const ROUTES: RouteSpec[] = [
   { method: "get", path: "/api/txs/{hash}", summary: "One transaction with its lifecycle stages, events and storage writes", response: TxDetailSchema, tag: "transactions" },
   { method: "get", path: "/api/blocks", summary: "Ethereum blocks with the transactions and records they contain", query: BlocksQuery, response: BlockListSchema, tag: "chain" },
   { method: "get", path: "/api/balances", summary: "Money waiting to be withdrawn, per account, and what the contract holds", response: BalanceListSchema, tag: "ledger" },
+  { method: "get", path: "/api/verify/range", summary: "verifyRange and auditRange for [from, to), next to the off-chain verdict for the same records", query: VerifyRangeQuery, response: VerifyRangeSchema, tag: "ledger" },
   { method: "get", path: "/api/verify", summary: "Off-chain verdict next to the contract's verifyLedger / auditRange", response: VerifySchema, tag: "ledger" },
   { method: "get", path: "/api/storage/records/{index}", summary: "Raw storage slots of a record next to their decoded values", response: StorageRecordSchema, tag: "ledger" },
   { method: "get", path: "/api/lab/status", summary: "Mining mode and number of connected clients", response: LabStatusSchema, tag: "lab" },

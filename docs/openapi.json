@@ -3158,6 +3158,154 @@
         }
       }
     },
+    "/api/verify/range": {
+      "get": {
+        "tags": [
+          "ledger"
+        ],
+        "summary": "verifyRange and auditRange for [from, to), next to the off-chain verdict for the same records",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "to": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "contract": {
+                      "type": "object",
+                      "properties": {
+                        "valid": {
+                          "type": "boolean"
+                        },
+                        "brokenAt": {
+                          "type": "string",
+                          "pattern": "^\\d+$",
+                          "description": "first broken record in the range, as verifyRange reports it"
+                        },
+                        "audit": {
+                          "type": "object",
+                          "properties": {
+                            "brokenIndexes": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^\\d+$",
+                                "description": "Unsigned integer as a decimal string"
+                              }
+                            },
+                            "reasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            }
+                          },
+                          "required": [
+                            "brokenIndexes",
+                            "reasons"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "valid",
+                        "brokenAt",
+                        "audit"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "offChain": {
+                      "type": "object",
+                      "properties": {
+                        "valid": {
+                          "type": "boolean",
+                          "description": "every record in the range passes data, link and event-log checks"
+                        },
+                        "brokenIndexes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^\\d+$",
+                            "description": "Unsigned integer as a decimal string"
+                          }
+                        },
+                        "contractVisibleIndexes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^\\d+$",
+                            "description": "Unsigned integer as a decimal string"
+                          },
+                          "description": "the subset the contract itself can see (data or link only)"
+                        }
+                      },
+                      "required": [
+                        "valid",
+                        "brokenIndexes",
+                        "contractVisibleIndexes"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "from",
+                    "to",
+                    "contract",
+                    "offChain"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/verify": {
       "get": {
         "tags": [
