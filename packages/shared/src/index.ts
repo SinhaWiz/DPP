@@ -6,3 +6,4 @@ export * from "./hashRecipe";
 export * from "./verifyEngine";
 export * from "./errorExplainer";
 export * from "./storageLayout";
+export * from "./deployment";

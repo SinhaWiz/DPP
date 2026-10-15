@@ -8,6 +8,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { marketAbi, storageLayout } from "../abi";
+import type { Deployment } from "../deployment";
 import { ContractFactory, JsonRpcProvider, NonceManager, type Contract, type JsonRpcSigner } from "ethers";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -95,3 +97,28 @@ export async function deployContracts(provider: JsonRpcProvider): Promise<Deploy
 }
 
 export { NonceManager };
+
+/** Builds the same object `npm run dev:deploy` writes to deployment.json, for contracts just deployed in a test. */
+export async function makeDeployment(provider: JsonRpcProvider, d: Deployed): Promise<Deployment> {
+  const genesis = await provider.getBlock(0);
+  const marketAddress = await d.market.getAddress();
+  const rejecterAddress = await d.rejecter.getAddress();
+  const receipt = await d.market.deploymentTransaction()!.wait();
+  const names = ["Manufacturer", "Distributor", "Retailer", "Customer", "Outsider"];
+  const roles = await Promise.all(
+    d.signers.map(async (s, index) => ({ index, name: names[index]!, description: "", address: await s.getAddress() })),
+  );
+  roles.push({ index: -1, name: "Broken Wallet", description: "", address: rejecterAddress });
+  return {
+    chainId: Number((await provider.getNetwork()).chainId),
+    sessionId: genesis!.hash!,
+    deployedAt: new Date().toISOString(),
+    deployBlock: receipt!.blockNumber,
+    contracts: {
+      market: { address: marketAddress, abi: marketAbi },
+      rejecter: { address: rejecterAddress, abi: d.rejecter.interface.fragments.map((f) => JSON.parse(f.format("json"))) },
+    },
+    storage: storageLayout,
+    roles,
+  };
+}
