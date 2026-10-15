@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { ChainStrip } from "@/components/chain/ChainStrip";
 import { EmptyState } from "@/components/layout/Panels";
+import { VerificationConsole } from "@/components/tamper/VerificationConsole";
 import { AttackLevels } from "@/components/tamper/AttackLevels";
 import { AttackJournal, SafetyBar, TamperBanner, useEntrySnapshot } from "@/components/tamper/Safety";
 import { useBrowserVerification } from "@/lib/useVerification";
@@ -57,6 +58,8 @@ export function TamperPage() {
       </section>
 
       <AttackLevels onChanged={reload} />
+
+      <VerificationConsole />
 
       <AttackJournal attacks={attacks} />
     </div>
