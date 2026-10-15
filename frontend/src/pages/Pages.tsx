@@ -10,11 +10,6 @@ function Page({ title, subtitle, children }: { title: string; subtitle: string; 
   );
 }
 
-export const Explorer = () => (
-  <Page title="Explorer" subtitle="The ledger as a chain of blocks. Hover a block to see what it holds.">
-    <EmptyState title="The chain will appear here" hint="Start the node and the backend, then reload." />
-  </Page>
-);
 export const Playground = () => (
   <Page title="Playground" subtitle="Act as any role and watch each transaction travel step by step.">
     <EmptyState title="Pick a role to start" />

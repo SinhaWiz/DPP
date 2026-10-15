@@ -27,3 +27,8 @@ if (!window.matchMedia) {
 if (!("ResizeObserver" in window)) {
   (window as unknown as { ResizeObserver: unknown }).ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
 }
+
+// jsdom lays nothing out, so every element measures 0x0 and a virtualized list would render no rows.
+// Give elements a viewport-sized box; virtualization then behaves as it does in a browser.
+Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, get: () => 1200 });
+Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, get: () => 180 });
