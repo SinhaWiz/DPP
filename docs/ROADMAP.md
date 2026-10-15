@@ -264,11 +264,11 @@ Each phase lists sub-steps, a deliverable or acceptance criterion, and its depen
   - [ ] 3.1.1 Append to `Action`: `Reserved` (buyer deposited payment, product locked) and `Revoked` (reservation cancelled, payment returned).
   - [ ] 3.1.2 Add `struct Reservation { address buyer; uint256 amount; uint64 expiresAt; }` and `mapping(uint256 productId => Reservation) _reservations`.
   - [ ] 3.1.3 Add `mapping(address => uint256) pendingWithdrawals` and a constant `RESERVATION_PERIOD = 1 days`.
-  - [ ] 3.1.4 New errors: `ProductReserved(id)`, `NotReserved(id)`, `NotReservationBuyer(id, caller)`, `ReservationNotExpired(id, expiresAt)`, `NothingToWithdraw(account)`, `WithdrawFailed(account)`.
-  - [ ] 3.1.5 New events: `ProductReserved(id, buyer, amount, expiresAt)`, `ReservationRevoked(id, by, buyer, amount, reason)` where reason is `BuyerCancelled | SellerRejected | Expired`, `SaleConfirmed(id, seller, buyer, amount)`, and `Withdrawn(account, amount)`.
+  - [ ] 3.1.4 New errors: `ProductReserved(id)`, `NotReserved(id)`, `NotReservationBuyer(id, caller)`, `ReservationExpired(id, expiredAt)` (seller confirming too late), `ReservationNotExpired(id, expiresAt)`, `NothingToWithdraw(account)`, `WithdrawFailed(account)`.
+  - [ ] 3.1.5 New events: `ReservationCreated(id, buyer, amount, expiresAt)` (not `ProductReserved`: a Solidity event and error cannot share a name), `ReservationRevoked(id, by, buyer, amount, reason)` where reason is `BuyerCancelled | SellerRejected | Expired`, `SaleConfirmed(id, seller, buyer, amount)`, and `Withdrawn(account, amount)`.
 - [ ] **3.2 Functions** (all follow checks-effects-interactions)
   - [ ] 3.2.1 `reserve(id) payable`: listed, not own product, exact price, not already reserved. Stores the reservation and appends `Reserved` (actor = buyer, counterparty = seller, price = amount). The listing stays, but is locked.
-  - [ ] 3.2.2 `confirmSale(id)` (seller): transfers ownership, clears the listing and reservation, credits `pendingWithdrawals[seller]`, and appends `Sold` (actor = seller, counterparty = buyer). The trail reads the same as an instant sale.
+  - [ ] 3.2.2 `confirmSale(id)` (seller, before expiry): transfers ownership, clears the listing and reservation, credits `pendingWithdrawals[seller]`, and appends `Sold` (actor = seller, counterparty = buyer). The trail reads the same as an instant sale.
   - [ ] 3.2.3 `revokeReservation(id)` (buyer, before confirmation): clears the reservation, credits the refund to `pendingWithdrawals[buyer]`, and appends `Revoked` (actor = buyer, counterparty = seller, price = amount).
   - [ ] 3.2.4 `rejectReservation(id)` (seller): same as 3.2.3 but actor = seller.
   - [ ] 3.2.5 `expireReservation(id)` (anyone, once `block.timestamp > expiresAt`): same refund, appends `Revoked` with actor = caller. Teaches time on chain together with `evm_increaseTime` (Phase 9).
@@ -353,6 +353,7 @@ Each phase lists sub-steps, a deliverable or acceptance criterion, and its depen
     | `ProductReserved(id)` | Another buyer has reserved this product. It's locked until confirmed or revoked. |
     | `NotReserved(id)` | There is no reservation to confirm or revoke. |
     | `NotReservationBuyer(id, caller)` | Only the buyer who reserved can revoke. |
+    | `ReservationExpired(id, at)` | The reservation period ended at *at*, so the seller can no longer confirm. |
     | `ReservationNotExpired(id, at)` | Anyone can expire a reservation, but only after *at*. |
     | `NothingToWithdraw(account)` | No funds waiting for this account. |
     | `WithdrawFailed(account)` | This account is a contract that refuses ETH. Its funds stay safe in the contract. |

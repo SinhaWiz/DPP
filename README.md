@@ -216,7 +216,7 @@ Logs are written once and cannot be changed afterwards, so they are an independe
 | `index` | Position in the ledger (0, 1, 2, …) |
 | `timestamp` | `block.timestamp` when the record was written |
 | `productId` | Which product this concerns |
-| `action` | `Registered`, `Listed`, `Delisted` or `Sold` |
+| `action` | `Registered`, `Listed`, `Delisted`, `Sold`, `Reserved` or `Revoked` |
 | `actor` | Who performed the action (the seller for a sale) |
 | `counterparty` | The buyer for a sale, `address(0)` for every other action |
 | `price` | Price in wei (0 when not applicable) |
@@ -256,6 +256,8 @@ mapping(uint256 productId => uint256[]) private _indexesByProduct; // product �
 // BuySellTraceability
 uint256 public productCount;                                 // also the latest product id
 mapping(uint256 productId => Product) private _products;
+mapping(uint256 productId => Reservation) private _reservations;  // escrow deposits
+mapping(address => uint256) public pendingWithdrawals;             // ETH owed to accounts
 ```
 
 The ledger is **global**: all products share one chain, which gives a single total order of events. `_indexesByProduct` is an index so a single product's history can be read without scanning everything.
@@ -270,6 +272,57 @@ A product is **for sale exactly when `price > 0`**. There is no separate flag th
 | `listForSale(id, price)` | current owner | Lists the product at `price` wei (must be > 0). Calling it again changes the price. | `Listed` |
 | `cancelListing(id)` | current owner | Removes the listing. | `Delisted` |
 | `buy(id)` (payable) | anyone except the owner | Pays exactly the price, takes ownership, and the seller receives the ETH. | `Sold` |
+| `reserve(id)` (payable) | anyone except the owner | Deposits exactly the price into escrow and locks the product. See [Escrow purchases](#escrow-purchases-reserve-confirm-revoke). | `Reserved` |
+| `confirmSale(id)` | current owner | Accepts the reservation (before it expires): ownership moves to the buyer, the payment becomes withdrawable by the seller. | `Sold` |
+| `revokeReservation(id)` | the reserving buyer | Cancels. The deposit becomes withdrawable by the buyer. | `Revoked` |
+| `rejectReservation(id)` | current owner | Declines. The deposit becomes withdrawable by the buyer. | `Revoked` |
+| `expireReservation(id)` | anyone, after the period | Ends a reservation older than `RESERVATION_PERIOD` (1 day). | `Revoked` |
+| `withdraw()` | anyone with a balance | Pulls the caller's `pendingWithdrawals` (sale proceeds or refunds). | none: money moves, no product changes |
+
+While a product is reserved, `listForSale`, `cancelListing`, `buy` and `reserve` revert with `ProductReserved`.
+
+### Escrow purchases (reserve, confirm, revoke)
+
+Instant `buy()` is atomic: payment and ownership change happen together and cannot be undone. The escrow flow splits a purchase into steps, so a purchase can be **revoked after money has moved**.
+
+```
+            reserve(id) + ETH
+ Listed ──────────────────────────► Reserved  (product locked, ETH held by the contract)
+                                      │
+        ┌─────────────────────────────┼──────────────────────────────┐
+        │ confirmSale (seller)        │ revokeReservation (buyer)    │ expireReservation (anyone,
+        ▼                             │ rejectReservation (seller)   │   after 1 day)
+      Sold                            ▼                              ▼
+ (seller can withdraw)            Revoked ◄──────────────────────────┘
+                                  (buyer can withdraw the refund; product is Listed again)
+```
+
+Each step appends a ledger record. A revoked purchase is **not erased**; it stays in the trail as `Reserved` followed by `Revoked`. Append-only ledgers don't delete, they record the reversal.
+
+| Record | `actor` | `counterparty` | `price` |
+|---|---|---|---|
+| `Reserved` | the buyer | the seller | the deposit |
+| `Sold` (via `confirmSale`) | the seller | the buyer | the payment |
+| `Revoked` | whoever ended it (buyer, seller, or any caller after expiry) | the other party (the seller if the buyer revoked, otherwise the buyer) | the refunded deposit |
+
+**Push vs pull payments.** `buy()` *pushes* ETH to the seller inside the same transaction, so a seller that cannot receive ETH makes the whole sale revert with `PaymentFailed`. The escrow flow *pulls*: it only credits `pendingWithdrawals`, and each party calls `withdraw()` themselves. An account that can't receive ETH can only hurt itself: its `withdraw()` fails with `WithdrawFailed`, its credit stays safe, and nobody else is blocked. `withdraw()` zeroes the balance before sending, so a receiver that re-enters finds nothing left to take.
+
+### Gas costs
+
+Measured with `REPORT_GAS=true npx hardhat test` (average per call, including the ledger write):
+
+| Function | Gas |
+|---|---|
+| `registerProduct` | ≈ 268,000 |
+| `listForSale` | ≈ 244,000 |
+| `cancelListing` | ≈ 206,000 |
+| `buy` | ≈ 260,000 |
+| `reserve` | ≈ 314,000 |
+| `confirmSale` | ≈ 274,000 |
+| `revokeReservation` / `rejectReservation` / `expireReservation` | ≈ 268,000 |
+| `withdraw` | ≈ 30,000 |
+
+Almost all of it is writing the 8-slot `Record` (plus one index slot) to storage. `withdraw` writes no record, which is why it is cheap.
 
 ### Read functions (free, no gas when called off-chain)
 
@@ -318,6 +371,13 @@ Failures use typed custom errors instead of revert strings. They are cheaper in 
 | `CannotBuyOwnProduct(productId)` | The owner tries to buy their own product |
 | `IncorrectPayment(expected, sent)` | `msg.value` differs from the price |
 | `PaymentFailed(recipient)` | The seller's address rejected the ETH. The whole sale reverts. |
+| `ProductReserved(productId)` | Listing, delisting, buying or reserving a product that already has a reservation |
+| `NotReserved(productId)` | Confirming, revoking, rejecting or expiring a product with no reservation |
+| `NotReservationBuyer(productId, caller)` | Someone other than the reserving buyer calls `revokeReservation` |
+| `ReservationExpired(productId, expiredAt)` | The seller tries to confirm after the period ended |
+| `ReservationNotExpired(productId, expiresAt)` | Expiring a reservation before its period ended |
+| `NothingToWithdraw(account)` | `withdraw` with a zero balance |
+| `WithdrawFailed(account)` | The caller is a contract that rejected the ETH. The balance is kept. |
 | `RecordNotFound(index)` | `getRecord` index is past the end |
 | `InvalidRange(from, to)` | `verifyRange` or `auditRange` gets `from > to` or `to` past the end |
 
@@ -325,7 +385,7 @@ In JavaScript tests, check them with `expect(tx).to.be.revertedWithCustomError(c
 
 ### Events
 
-Each action emits an event (`ProductRegistered`, `ProductListed`, `ProductDelisted`, `ProductSold`), plus `RecordAppended` for every ledger entry. Front-ends and indexers listen to events. Reading the ledger from storage is the other way to get the data.
+Each action emits an event (`ProductRegistered`, `ProductListed`, `ProductDelisted`, `ProductSold`, and for escrow `ReservationCreated`, `SaleConfirmed`, `ReservationRevoked` and `Withdrawn`), plus `RecordAppended` for every ledger entry. Front-ends and indexers listen to events. Reading the ledger from storage is the other way to get the data.
 
 ### Code organisation notes
 
@@ -508,7 +568,8 @@ Stop the node with `Ctrl+C`. Restarting it resets the chain.
 
 - **One global chain, not one per product.** It is simpler and gives a total ordering of events. The cost is that `verifyLedger()` loops over the whole ledger, so its gas cost grows with the ledger length. It is a `view` function, so calling it off-chain is free, but another contract calling it on-chain would pay for the loop. For long ledgers, use `verifyRange(from, to)` and `getProductHistory(id, offset, limit)` to work in chunks.
 - **The in-contract hash chain is redundant on a real blockchain.** Ethereum already makes history tamper-evident. The chain here is included to demonstrate the mechanism and to give a self-contained verification function. For production tracing you would usually rely on events plus an indexer.
-- **Direct payment to the seller.** If the seller is a contract that rejects ETH, `buy()` reverts. A production marketplace often uses a pull-payment pattern (sellers withdraw their balance) to avoid this.
+- **Direct payment to the seller in `buy()`.** If the seller is a contract that rejects ETH, `buy()` reverts. It is kept this way on purpose, to show push payments. The escrow flow (`reserve` / `confirmSale` / `withdraw`) uses the pull-payment pattern instead.
+- **A reservation locks the product.** A malicious buyer can reserve a product and then do nothing, blocking other buyers until the period (1 day) ends or the seller rejects. A real marketplace would add a deposit penalty or rate limits.
 - **No access control for who may register products.** Anyone can. A real supply chain would restrict this with roles (for example OpenZeppelin `AccessControl`).
 - **No physical-world proof.** The contract records what accounts *claim*. It can't know that a physical laptop was really handed over.
 - **Prices are in wei** (1 ETH = 10¹⁸ wei). The scripts convert with `ethers.parseEther` and `ethers.formatEther`.
@@ -536,7 +597,6 @@ Stop the node with `Ctrl+C`. Restarting it resets the chain.
 ## 14. Possible extensions
 
 - Add **roles** (Manufacturer, Distributor, Retailer) with OpenZeppelin `AccessControl`.
-- Add a **pull-payment** withdrawal pattern.
 - Add **product metadata** (batch number, location, an IPFS hash of a certificate).
 - Add a **`transferTo(id, newOwner)`** for non-sale hand-offs such as shipping to a warehouse.
 - Build a small **web front-end** (React + ethers.js) that shows the trail as a timeline.
