@@ -71,6 +71,13 @@ describe("indexer: sessions, blocks and transactions", () => {
     expect(h.repo.countTxs()).toBe(before);
   });
 
+  it("stays silent while nothing happens: idle polling publishes no status changes", async () => {
+    await h.indexer.syncOnce();
+    const before = h.bus.lastSeq;
+    for (let i = 0; i < 5; i++) await h.indexer.syncOnce();
+    expect(h.bus.lastSeq).toBe(before);
+  });
+
   it("shares one pass between concurrent callers", async () => {
     const [a, b] = await Promise.all([h.indexer.syncOnce(), h.indexer.syncOnce()]);
     expect(a).toBe(b);

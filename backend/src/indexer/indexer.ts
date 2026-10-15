@@ -215,7 +215,6 @@ export class Indexer {
     this.deployment = deployment;
 
     // 3. Did the chain move backwards (evm_revert) or branch? Forget what no longer exists.
-    this.setState("syncing");
     const head = toNumber(await rpc.send<string>("eth_blockNumber"));
     this.lastHead = head;
     const rewound = await this.detectRewind(head, deployment.deployBlock);
@@ -224,6 +223,8 @@ export class Indexer {
     // 4. New blocks.
     const latest = repo.latestBlock();
     const first = latest ? latest.number + 1 : deployment.deployBlock;
+    // Only announce "syncing" when there is something to catch up on; an idle poll should be silent.
+    if (first <= head || reset) this.setState("syncing");
 
     let blocks = 0, txs = 0, events = 0;
     for (let n = first; n <= head; n++) {
