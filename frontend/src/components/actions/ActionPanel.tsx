@@ -6,6 +6,7 @@ import { getTxFlow, useFlow } from "@/store/flowInstance";
 import { useLive } from "@/store/live";
 import { useUi } from "@/store/uiStore";
 import { useWallet } from "@/store/wallet";
+import { BreakRules } from "./BreakRules";
 import { ACTIONS, actionByFn, buildCall, predict, type ActionDef, type FormValues } from "@/web3/actions";
 import type { MarketFunction } from "@/web3/market";
 
@@ -141,6 +142,8 @@ export function ActionPanel() {
       </form>
 
       <ActiveTxControls def={def} />
+
+      <BreakRules />
     </div>
   );
 }

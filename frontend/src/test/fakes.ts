@@ -91,6 +91,7 @@ export function fakeApi(over: Record<string, unknown> = {}) {
       })),
       setMining: vi.fn(async (mode: "auto" | "manual" | "interval", intervalMs?: number) => ({ mode, automine: mode === "auto", intervalMs: mode === "interval" ? (intervalMs ?? 3000) : null })),
       mine: vi.fn(async (blocks = 1) => ({ mined: blocks, headBlock: 10 })),
+      runScenario: vi.fn(async (name: string) => ({ name, steps: [] as string[], result: {} as Record<string, unknown> })),
       dropTx: vi.fn(async (hash: string) => ({ hash, dropped: true as const })),
       replaceTx: vi.fn(async (hash: string, mode: "cancel" | "speedUp") => ({ original: hash, replacement: "0x" + "ee".repeat(32), mode })),
     },
