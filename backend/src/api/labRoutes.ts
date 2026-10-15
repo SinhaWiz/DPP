@@ -37,6 +37,21 @@ export async function registerLabRoutes(app: FastifyInstance, s: Services): Prom
       return s.lab.replaceTx(hash, body.mode);
     });
 
+    lab.get("/api/lab/tamper", async () => ({ attacks: s.lab.tamper.active() }));
+    lab.post("/api/lab/tamper", async (req) => {
+      const body = z
+        .object({
+          index: z.union([z.string().regex(/^\d+$/), z.number().int().min(0)]),
+          field: z.enum(["index", "timestamp", "productId", "action", "actor", "counterparty", "price", "prevHash", "hash"]),
+          value: z.union([z.string(), z.number()]),
+          mode: z.enum(["data", "data+hash", "rewrite-tail"]).default("data"),
+        })
+        .parse(req.body);
+      return s.lab.tamper.tamper(body);
+    });
+    lab.post("/api/lab/tamper/undo-all", async () => s.lab.tamper.undoAll());
+    lab.post("/api/lab/tamper/:groupId/undo", async (req) => s.lab.tamper.undo(z.object({ groupId: z.string().min(1) }).parse(req.params).groupId));
+
     lab.get("/api/lab/snapshots", async () => ({ snapshots: s.lab.listSnapshots() }));
     lab.post("/api/lab/snapshots", async (req) => s.lab.snapshot(z.object({ name: z.string() }).parse(req.body).name));
     lab.post("/api/lab/restore", async (req) => s.lab.restore(z.object({ name: z.string() }).parse(req.body).name));

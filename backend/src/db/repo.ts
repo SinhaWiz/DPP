@@ -446,7 +446,7 @@ export class Repo {
     return (this.db.prepare("select * from tamper_journal where group_id = ? order by id").all(groupId) as SqlRow[]).map((r) => this.tamperFrom(r));
   }
   activeTamperGroups(): string[] {
-    return (this.db.prepare("select distinct group_id from tamper_journal where undone_at is null order by group_id").all() as SqlRow[]).map((r) => r.group_id as string);
+    return (this.db.prepare("select group_id from tamper_journal where undone_at is null group by group_id order by min(id)").all() as SqlRow[]).map((r) => r.group_id as string);
   }
   markTamperUndone(groupId: string, at: number): void {
     this.db.prepare("update tamper_journal set undone_at = ? where group_id = ? and undone_at is null").run(at, groupId);

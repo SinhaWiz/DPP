@@ -99,6 +99,11 @@ export class Indexer {
     return this.reader ? this.reader.records(offset, limit) : [];
   }
 
+  /** `ledgerLength()` as the contract reports it right now. */
+  async chainLedgerLength(): Promise<number> {
+    return this.reader ? this.reader.ledgerLength() : 0;
+  }
+
   /** What the contract itself says about the ledger's integrity (`verifyLedger` and `auditRange`). */
   async onChainVerdict(): Promise<Awaited<ReturnType<LedgerReader["onChainVerdict"]>> | null> {
     return this.reader ? this.reader.onChainVerdict() : null;

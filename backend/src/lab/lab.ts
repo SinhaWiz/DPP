@@ -9,6 +9,7 @@ import type { VerificationService } from "../verification";
 import type { RawTx } from "../indexer/rawTypes";
 import { toBig, toHexQuantity } from "../indexer/rawTypes";
 import { labAvailability, type LabAvailability } from "./guard";
+import { TamperEngine } from "./tamper";
 
 export class LabError extends Error {
   constructor(readonly status: number, readonly code: string, message: string) {
@@ -53,7 +54,11 @@ export class Lab {
   private clients = 0;
   private graceTimer: NodeJS.Timeout | null = null;
 
-  constructor(readonly d: LabDeps) {}
+  readonly tamper: TamperEngine;
+
+  constructor(readonly d: LabDeps) {
+    this.tamper = new TamperEngine(this);
+  }
 
   // ───────────────────────── availability ─────────────────────────
 

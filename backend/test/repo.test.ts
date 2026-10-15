@@ -142,14 +142,15 @@ describe("Repo", () => {
 
   it("journals tampering and undoes by group", () => {
     const base = { groupId: "g1", recordIndex: 3n, field: "price", slot: H(9), oldValue: H(1), newValue: H(2), mode: "data", createdAt: 1 };
-    repo.addTamper(base);
-    repo.addTamper({ ...base, field: "hash" });
-    repo.addTamper({ ...base, groupId: "g2" });
-    expect(repo.tamperGroup("g1").map((t) => t.field)).toEqual(["price", "hash"]);
-    expect(repo.activeTamperGroups()).toEqual(["g1", "g2"]);
-    repo.markTamperUndone("g1", 99);
-    expect(repo.activeTamperGroups()).toEqual(["g2"]);
-    expect(repo.tamperGroup("g1")[0]!.undoneAt).toBe(99);
+    repo.addTamper({ ...base, groupId: "zz-created-first" });
+    repo.addTamper({ ...base, groupId: "zz-created-first", field: "hash" });
+    repo.addTamper({ ...base, groupId: "aa-created-second" });
+    expect(repo.tamperGroup("zz-created-first").map((t) => t.field)).toEqual(["price", "hash"]);
+    // ordered by creation, not by name
+    expect(repo.activeTamperGroups()).toEqual(["zz-created-first", "aa-created-second"]);
+    repo.markTamperUndone("zz-created-first", 99);
+    expect(repo.activeTamperGroups()).toEqual(["aa-created-second"]);
+    expect(repo.tamperGroup("zz-created-first")[0]!.undoneAt).toBe(99);
   });
 
   it("rewinds to a block, deleting everything after it but keeping pending transactions", () => {
