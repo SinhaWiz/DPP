@@ -22,6 +22,8 @@ export interface IndexerDeps {
   pollMs?: number;
   /** Re-verifies the ledger after each pass; optional so the indexer can be used on its own. */
   verification?: VerificationService;
+  /** Runs after every pass of the polling loop (the mempool watcher plugs in here). */
+  afterPass?: () => Promise<void>;
   /** Trace successful market transactions for the storage-write view (6.5). */
   traceStorage?: boolean;
 }
@@ -116,6 +118,7 @@ export class Indexer {
     const tick = async () => {
       try {
         await this.syncOnce();
+        await this.d.afterPass?.();
       } catch (e) {
         this.setState("waiting-for-node", e instanceof Error ? e.message : String(e));
         this.d.log.warn(`indexer pass failed: ${this.message}`);
@@ -334,6 +337,13 @@ export class Indexer {
       for (const e of eventRows) repo.insertEvent(e);
       for (const [hash, rows] of storageRows) repo.replaceStorageWrites(hash, rows);
     });
+    // A transaction that was mined takes the place of any pending one with the same sender and nonce.
+    for (const row of txRows) {
+      for (const old of repo.findPendingBySenderNonce(row.from, row.nonce, row.hash)) {
+        repo.upsertTx({ ...old, lifecycleState: "replaced", replacedBy: row.hash });
+        bus.publish("tx.replaced", { hash: old.hash, replacedBy: row.hash, from: old.from, nonce: old.nonce });
+      }
+    }
     for (const e of eventRows) {
       const id = e.args.productId;
       if (id !== undefined) this.dirtyProducts.add(Number(id));

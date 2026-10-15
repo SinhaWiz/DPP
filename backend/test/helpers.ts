@@ -7,6 +7,7 @@ import { Repo } from "../src/db/repo";
 import { Indexer } from "../src/indexer/indexer";
 import { silentLogger } from "../src/logger";
 import { VerificationService } from "../src/verification";
+import { MempoolWatcher } from "../src/lifecycle/mempoolWatcher";
 
 export interface Harness {
   node: DevNode;
@@ -17,6 +18,7 @@ export interface Harness {
   bus: Bus;
   indexer: Indexer;
   verification: VerificationService;
+  watcher: MempoolWatcher;
   /** Calls a market function as role `signer` (0 = Manufacturer … 4 = Outsider). */
   call: (signer: number, fn: string, ...args: unknown[]) => Promise<void>;
   /** Sends a call that is expected to revert, with an explicit gas limit so the node mines it. Returns the tx hash. */
@@ -37,13 +39,14 @@ export async function startHarness(opts: { traceStorage?: boolean } = {}): Promi
     rpc, repo, bus, log: silentLogger, getDeployment: () => deployment, pollMs: 50, verification,
     traceStorage: opts.traceStorage ?? true,
   });
+  const watcher = new MempoolWatcher({ rpc, repo, bus, log: silentLogger, indexer });
   const market = deployed.market;
 
   const send = async (signer: number, fn: string, args: unknown[], overrides: object = {}) =>
     (market.connect(deployed.signers[signer]!) as Contract).getFunction(fn)(...args, overrides);
 
   return {
-    node, deployed, deployment, rpc, repo, bus, indexer, verification,
+    node, deployed, deployment, rpc, repo, bus, indexer, verification, watcher,
     call: async (signer, fn, ...args) => {
       const last = args[args.length - 1];
       const hasOverrides = typeof last === "object" && last !== null && !Array.isArray(last);
