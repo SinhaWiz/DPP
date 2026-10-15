@@ -39,7 +39,19 @@ interface ITraceabilityLedger {
 
     // ───────────────────────────── Events ────────────────────────────
 
-    event RecordAppended(uint256 indexed index, uint256 indexed productId, Action action, bytes32 hash);
+    /// @notice Emitted for every ledger record.
+    /// @dev Carries both halves of the hash link (`prevHash` and `hash`). The
+    ///      transaction log cannot be edited after the fact, so it is an
+    ///      independent witness against which stored records can be audited.
+    ///      `actor` is indexed so one account's activity is a cheap log filter.
+    event RecordAppended(
+        uint256 indexed index,
+        uint256 indexed productId,
+        Action action,
+        address indexed actor,
+        bytes32 prevHash,
+        bytes32 hash
+    );
 
     // ───────────────────────────── Errors ────────────────────────────
 

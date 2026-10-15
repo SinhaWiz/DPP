@@ -134,7 +134,7 @@ abstract contract HashChainLedger is ITraceabilityLedger {
 
         _ledger.push(record);
         _indexesByProduct[productId].push(index);
-        emit RecordAppended(index, productId, action, record.hash);
+        emit RecordAppended(index, productId, action, actor, record.prevHash, record.hash);
     }
 
     function _historyLength(uint256 productId) internal view returns (uint256) {
