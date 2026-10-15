@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { useTheme } from "@/lib/useTheme";
+import { ActionPanel } from "@/components/actions/ActionPanel";
 import { ActionsDrawer, Dock, ExplainDrawer } from "./Panels";
 import { Notices } from "./Notices";
 import { AccountSwitcher, LinkStatus } from "./Status";
@@ -16,7 +17,9 @@ export function Shell() {
       <TopBar status={<><LinkStatus /><AccountSwitcher /></>} />
       <Notices />
       <div className="flex min-h-0 flex-1">
-        <ActionsDrawer />
+        <ActionsDrawer>
+          <ActionPanel />
+        </ActionsDrawer>
         <main id="main" className="min-w-0 flex-1 overflow-auto p-4">
           <Outlet />
         </main>
