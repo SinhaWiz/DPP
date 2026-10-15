@@ -120,7 +120,10 @@ Buy_sell_simulation/
 │   ├── simulate.js                 # runs a 4-party supply chain and prints the trail
 │   └── deploy.js                   # deploys to a chosen network
 ├── test/
-│   └── BuySellTraceability.test.js # 25 automated tests
+│   ├── BuySellTraceability.test.js # core behaviour, ledger and tamper tests
+│   ├── bulkReads.test.js           # getRecords / getProducts / headHash
+│   ├── inspection.test.js          # inspectRecord / auditRange
+│   └── helpers/tamper.js           # rewrites stored records (local network only)
 ├── hardhat.config.js               # compiler version and plugins
 ├── package.json                    # dependencies and npm scripts
 ├── .gitignore
@@ -265,12 +268,30 @@ A product is **for sale exactly when `price > 0`**. There is no separate flag th
 | `isForSale(id)` | `true` while the product is listed |
 | `getProductHistoryLength(id)` | Number of ledger records for that product |
 | `getProductHistory(id, offset, limit)` | A page of that product's `Record`s, oldest first. An offset past the end gives an empty page. |
+| `getProducts(offset, limit)` | A page of products in id order (offset 0 starts at product #1). Clamped, never reverts on a large offset or limit. |
 | `getRecord(index)` | A single ledger record |
+| `getRecords(offset, limit)` | A page of the global ledger, oldest first. One call instead of one per record. |
 | `ledgerLength()` | Number of records in the ledger |
+| `headHash()` | Hash of the newest record (all zeros when empty). This is the `prevHash` the next record will carry. |
 | `verifyLedger()` | `(valid, brokenAt)` for the whole ledger |
 | `verifyRange(from, to)` | `(valid, brokenAt)` for records `[from, to)`, so a long ledger can be checked in chunks |
+| `inspectRecord(index)` | One record plus its recomputed hash, the hash it should link to, and separate `dataOk` / `linkOk` flags |
+| `auditRange(from, to)` | `(brokenIndexes, reasons)` for **every** broken record in `[from, to)`. `reasons` is a bitmask: `1` = data mismatch, `2` = link mismatch |
 
 `verifyRange` checks the first record's `prevHash` against the stored hash of the record before it. That earlier record is not re-hashed unless it falls inside the range.
+
+#### Why `verifyLedger` reports only the first break
+
+`verifyLedger` and `verifyRange` stop at the first bad record and return only its index. They can't tell you *why* it is bad, or whether more records are bad. That is enough to answer "is the ledger intact?" and keeps the loop cheap.
+
+`inspectRecord` and `auditRange` use the same per-record check, so they always agree with `verifyLedger` about *which* record fails first. They go further:
+
+- `inspectRecord` says whether the record's **data** no longer matches its hash, or its **link** no longer matches the previous hash.
+- `auditRange` lists all broken records at once, each with a reason.
+
+The two reasons show up differently depending on the attack. If someone changes a record's data without touching its stored hash, only that record is flagged (`dataOk = false`); the next record's link still matches the stored hash, so it is not flagged. If they also rewrite the stored hash to match, that record looks fine, but the **next** record's link breaks. This is why an attacker has to rewrite every later record to hide a change, and why the in-contract check alone cannot detect a complete rewrite (see the Tamper Lab in `docs/ROADMAP.md`).
+
+Keep `auditRange` calls to a few hundred records. The loop runs inside a single `eth_call`, which has a gas cap.
 
 ### Custom errors
 
@@ -287,7 +308,7 @@ Failures use typed custom errors instead of revert strings. They are cheaper in 
 | `IncorrectPayment(expected, sent)` | `msg.value` differs from the price |
 | `PaymentFailed(recipient)` | The seller's address rejected the ETH. The whole sale reverts. |
 | `RecordNotFound(index)` | `getRecord` index is past the end |
-| `InvalidRange(from, to)` | `verifyRange` gets `from > to` or `to` past the end |
+| `InvalidRange(from, to)` | `verifyRange` or `auditRange` gets `from > to` or `to` past the end |
 
 In JavaScript tests, check them with `expect(tx).to.be.revertedWithCustomError(contract, "NotProductOwner")`.
 
