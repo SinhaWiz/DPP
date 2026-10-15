@@ -4,6 +4,7 @@ import { RolesProvider } from "@/lib/roles";
 import { setTxFlow } from "@/store/flowInstance";
 import { narrate } from "@/lib/narration";
 import { useNarration } from "@/store/narration";
+import { useTally } from "@/store/eventTally";
 import { LiveController, getLiveController, setLiveController, useLive } from "@/store/live";
 import { TxFlow } from "@/store/txFlow";
 import { useWallet } from "@/store/wallet";
@@ -47,6 +48,7 @@ function createFlow(live: LiveController): TxFlow {
 function startNarration(live: LiveController): void {
   live.store.subscribe((state, prev) => {
     if (!state.lastMessage || state.lastMessage === prev.lastMessage) return;
+    useTally.getState().record(state.lastMessage);
     const note = narrate(state.lastMessage, { findTx: (hash) => live.state.txs.find((t) => t.hash.toLowerCase() === hash.toLowerCase()) });
     if (note) useNarration.getState().push(note);
   });
