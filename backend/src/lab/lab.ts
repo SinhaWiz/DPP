@@ -6,6 +6,8 @@ import type { Indexer } from "../indexer/indexer";
 import type { MempoolWatcher } from "../lifecycle/mempoolWatcher";
 import type { Logger } from "../logger";
 import type { VerificationService } from "../verification";
+import type { RawTx } from "../indexer/rawTypes";
+import { toBig, toHexQuantity } from "../indexer/rawTypes";
 import { labAvailability, type LabAvailability } from "./guard";
 
 export class LabError extends Error {
@@ -23,6 +25,14 @@ export interface LabDeps {
   indexer: Indexer;
   watcher: MempoolWatcher;
   verification: VerificationService;
+}
+
+export interface SnapshotRecord {
+  name: string;
+  /** The node's evm_snapshot id. Single-use. */
+  id: string;
+  block: number;
+  createdAt: number;
 }
 
 export type MiningMode = "auto" | "manual" | "interval";
@@ -127,6 +137,115 @@ export class Lab {
   async settle(): Promise<void> {
     await this.d.indexer.syncOnce();
     await this.d.watcher.poll();
+  }
+
+  // ───────────────────────── pending transactions ─────────────────────────
+
+  private async pendingTx(hash: string): Promise<RawTx> {
+    const tx = await this.d.rpc.send<RawTx | null>("eth_getTransactionByHash", [hash]).catch(() => null);
+    if (!tx) throw new LabError(404, "not_found", "That transaction is not known to the node");
+    if (tx.blockNumber) throw new LabError(409, "not_pending", "That transaction was already mined; it can no longer be dropped or replaced");
+    return tx;
+  }
+
+  /** Removes a transaction from the mempool. It is never mined, and nothing about it reaches the ledger. */
+  async dropTx(hash: string): Promise<{ hash: string; dropped: true }> {
+    await this.pendingTx(hash);
+    const ok = await this.d.rpc.send<boolean>("hardhat_dropTransaction", [hash]);
+    if (!ok) throw new LabError(409, "not_pending", "The node no longer holds that transaction");
+    this.d.watcher.markDropped(hash);
+    return { hash, dropped: true };
+  }
+
+  /**
+   * Replaces a pending transaction by sending another with the same nonce and a higher fee.
+   * cancel: a 0-ETH transfer to the sender themself, so the original never executes.
+   * speedUp: the same call again with a higher fee.
+   * Works for accounts the node holds unlocked (the dev accounts).
+   */
+  async replaceTx(hash: string, mode: "cancel" | "speedUp"): Promise<{ original: string; replacement: string; mode: string }> {
+    const tx = await this.pendingTx(hash);
+    const bump = (v: string | undefined, fallback: bigint) => ((v ? toBig(v) : fallback) * 2n + 1n);
+    const base = tx.gasPrice ? toBig(tx.gasPrice) : 1_000_000_000n;
+    const maxFee = bump(tx.maxFeePerGas, base);
+    const prio = bump(tx.maxPriorityFeePerGas, base / 2n);
+
+    const request =
+      mode === "cancel"
+        ? { from: tx.from, to: tx.from, value: "0x0", gas: "0x5208" }
+        : { from: tx.from, to: tx.to, value: tx.value, data: tx.input, gas: tx.gas };
+
+    let replacement: string;
+    try {
+      replacement = await this.d.rpc.send<string>("eth_sendTransaction", [
+        { ...request, nonce: tx.nonce, maxFeePerGas: toHexQuantity(maxFee), maxPriorityFeePerGas: toHexQuantity(prio) },
+      ]);
+    } catch (e) {
+      throw new LabError(400, "cannot_replace", `The node could not send the replacement: ${e instanceof Error ? e.message.slice(0, 160) : e}`);
+    }
+    await this.d.watcher.poll();
+    return { original: hash, replacement, mode };
+  }
+
+  // ───────────────────────── snapshots ─────────────────────────
+  //
+  // evm_snapshot ids are single-use: after evm_revert the id is gone, and every snapshot taken after
+  // it is invalid too. So a restore immediately takes a fresh snapshot under the same name, and drops
+  // the names that were created later.
+
+  private readSnapshots(): SnapshotRecord[] {
+    const raw = this.d.repo.getMeta("lab_snapshots");
+    return raw ? (JSON.parse(raw) as SnapshotRecord[]) : [];
+  }
+
+  private writeSnapshots(list: SnapshotRecord[]): void {
+    this.d.repo.setMeta("lab_snapshots", JSON.stringify(list));
+  }
+
+  listSnapshots(): SnapshotRecord[] {
+    return this.readSnapshots();
+  }
+
+  async snapshot(name: string): Promise<SnapshotRecord> {
+    this.checkSnapshotName(name);
+    const id = await this.d.rpc.send<string>("evm_snapshot");
+    const block = Number(BigInt(await this.d.rpc.send<string>("eth_blockNumber")));
+    const record: SnapshotRecord = { name, id, block, createdAt: Date.now() };
+    // Replacing a name also invalidates anything taken after the old one.
+    const list = this.readSnapshots();
+    const at = list.findIndex((s) => s.name === name);
+    this.writeSnapshots([...(at >= 0 ? list.slice(0, at) : list), record]);
+    return record;
+  }
+
+  async restore(name: string): Promise<{ name: string; headBlock: number; snapshot: SnapshotRecord }> {
+    this.checkSnapshotName(name);
+    const list = this.readSnapshots();
+    const at = list.findIndex((s) => s.name === name);
+    if (at < 0) throw new LabError(404, "not_found", `No snapshot named '${name}'`);
+
+    const ok = await this.d.rpc.send<boolean>("evm_revert", [list[at]!.id]);
+    if (!ok) {
+      this.writeSnapshots(list.filter((s) => s.name !== name));
+      throw new LabError(409, "snapshot_invalid", `Snapshot '${name}' is no longer valid (the node was reset or an earlier snapshot was restored)`);
+    }
+
+    // Reverting also undid any direct storage edits made after the snapshot.
+    for (const group of this.d.repo.activeTamperGroups()) this.d.repo.markTamperUndone(group, Date.now());
+
+    const fresh = await this.snapshot(name); // ids are single-use
+    const kept = this.readSnapshots().filter((s) => list.findIndex((x) => x.name === s.name) <= at);
+    this.writeSnapshots(kept);
+
+    await this.settle();
+    await this.d.indexer.rescanStorage();
+    const headBlock = Number(BigInt(await this.d.rpc.send<string>("eth_blockNumber")));
+    this.d.bus.publish("lab.restored", { kind: "snapshot", name, headBlock });
+    return { name, headBlock, snapshot: fresh };
+  }
+
+  private checkSnapshotName(name: string): void {
+    if (!/^[\w-]{1,40}$/.test(name)) throw new LabError(400, "bad_request", "A snapshot name is 1 to 40 letters, digits, '-' or '_'");
   }
 
   // ───────────────────────── client tracking ─────────────────────────
