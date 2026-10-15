@@ -86,9 +86,13 @@ export function fakeApi(over: Record<string, unknown> = {}) {
     blocks: vi.fn(async () => ({ blocks: [] })),
     verify: vi.fn(async () => verifyOk),
     lab: {
-      status: vi.fn(async () => ({ mining: { mode: "auto" as const, automine: true, intervalMs: null }, clients: 1 })),
+      status: vi.fn(async (): Promise<{ mining: { mode: "auto" | "manual" | "interval"; automine: boolean; intervalMs: number | null }; clients: number }> => ({
+        mining: { mode: "auto", automine: true, intervalMs: null }, clients: 1,
+      })),
       setMining: vi.fn(async (mode: "auto" | "manual" | "interval", intervalMs?: number) => ({ mode, automine: mode === "auto", intervalMs: mode === "interval" ? (intervalMs ?? 3000) : null })),
       mine: vi.fn(async (blocks = 1) => ({ mined: blocks, headBlock: 10 })),
+      dropTx: vi.fn(async (hash: string) => ({ hash, dropped: true as const })),
+      replaceTx: vi.fn(async (hash: string, mode: "cancel" | "speedUp") => ({ original: hash, replacement: "0x" + "ee".repeat(32), mode })),
     },
     setRecordCount: (c: number) => { n = c; customRecords = null; },
     setRecords: (r: ApiRecord[]) => { customRecords = r; },
