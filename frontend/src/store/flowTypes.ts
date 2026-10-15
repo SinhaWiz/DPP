@@ -1,6 +1,8 @@
 import type { ApiTxDetail, ErrorExplanation } from "@dpp/shared";
 import type { MarketFunction, Simulation } from "@/web3/market";
 
+export type LifecycleState = "pending" | "mined" | "failed" | "replaced" | "dropped";
+
 export type FlowStage =
   | "draft"       // prepared, nothing run yet
   | "simulating"  // asking the node what would happen
@@ -44,6 +46,8 @@ export interface FlowTx {
   /** The backend's view, refreshed as the transaction moves. */
   backend: ApiTxDetail | null;
   error: ErrorExplanation | null;
+  /** Rebuilt from the backend to look at a past transaction; it was not drafted or simulated here. */
+  replay?: boolean;
   /** When each stage was entered (ms since epoch). */
   history: { stage: FlowStage; at: number }[];
 }

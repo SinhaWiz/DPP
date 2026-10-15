@@ -149,6 +149,34 @@ export class TxFlow {
     return this.submit(id, { force: true });
   }
 
+  // ───────────────────────── replaying ─────────────────────────
+
+  /**
+   * Loads any transaction the backend knows (including failed, replaced and dropped ones, and ones sent
+   * before this page was opened) and shows it in the pipeline as if it had just happened.
+   */
+  async replay(hash: string): Promise<FlowTx> {
+    const existing = this.state.items.find((t) => sameHash(t.hash, hash));
+    if (existing) {
+      this.setActive(existing.id);
+      void this.refresh(existing.id);
+      return existing;
+    }
+
+    const detail = await this.d.api.tx(hash);
+    const known = detail.functionName ? marketInterface.getFunction(detail.functionName) : null;
+    const stage = fromBackend(detail.state) ?? "pending";
+    const tx: FlowTx = {
+      id: `tx-${++this.seq}`, fn: (known?.name ?? "registerProduct") as FlowTx["fn"], label: known ? known.name : (detail.functionName ?? "Transfer"),
+      args: [], shownArgs: detail.args ?? {}, value: BigInt(detail.value), writesRecord: detail.recordIndex !== null || (detail.state === "mined" && known?.name !== "withdraw" && known !== null),
+      from: detail.from, fromRole: null, calldata: "", selector: known?.selector ?? "—", signature: known ? known.format("sighash") : "(not a market call)",
+      stage, simulation: null, forced: false, hash: detail.hash, nonce: detail.nonce, backend: detail, error: null, replay: true,
+      history: [{ stage, at: this.now() }],
+    };
+    this.store.setState((s) => ({ items: [tx, ...s.items].slice(0, MAX_ITEMS), activeId: tx.id }));
+    return tx;
+  }
+
   // ───────────────────────── following ─────────────────────────
 
   /** Reloads one transaction from the backend and moves the flow to the stage it reports. */

@@ -31,15 +31,18 @@ export function pipelineNodes(tx: FlowTx): PipelineNode[] {
 
   // 1. Draft: always happened.
   nodes.push({
-    key: "draft", label: "Draft", status: "done", at: entered(tx, "draft"),
+    key: "draft", label: tx.replay ? "Call" : "Draft", status: "done", at: entered(tx, "draft"),
     detail: [
       ["Function", tx.signature],
       ...Object.entries(tx.shownArgs).map(([k, v]): [string, string] => [k, v]),
       ...(tx.value ? ([["Sends", `${formatEth(tx.value)} ETH`]] as [string, string][]) : []),
-      ["Calldata", tx.calldata.length > 74 ? `${tx.calldata.slice(0, 74)}…` : tx.calldata],
+      ["Calldata", tx.calldata === "" ? "—" : tx.calldata.length > 74 ? `${tx.calldata.slice(0, 74)}…` : tx.calldata],
     ],
     explain: `Your request is encoded as calldata: the first 4 bytes (${tx.selector}) select the function ${tx.signature}, and the rest carry its arguments, each padded to 32 bytes.`,
   });
+
+  // A replayed transaction was not simulated here: its story starts when it was sent.
+  if (tx.replay) return replayNodes(tx, nodes);
 
   // 2. Simulation.
   const simStatus: NodeStatus =
@@ -68,6 +71,25 @@ export function pipelineNodes(tx: FlowTx): PipelineNode[] {
     explain: "Your account signs the transaction, proving it came from you, and sends it to the node. The nonce counts your transactions so each can be used only once.",
   });
   if (signedStatus === "failed" || signedStatus === "upcoming" || signedStatus === "current") return nodes;
+
+  return continueFromSent(tx, nodes);
+}
+
+/** Past transactions skip the browser-side stages (they were never drafted or simulated here). */
+function replayNodes(tx: FlowTx, nodes: PipelineNode[]): PipelineNode[] {
+  nodes.push({
+    key: "signed", label: "Sent", status: "done", at: tx.backend?.firstSeenAt ?? null,
+    detail: [["From", tx.fromRole ? `${tx.fromRole} (${short(tx.from)})` : short(tx.from)], ["Hash", tx.hash ?? "—"], ["Nonce", tx.nonce === null ? "—" : String(tx.nonce)]],
+    explain: "The account signed the transaction and sent it to the node. The nonce counts that account's transactions so each can be used only once.",
+  });
+  return continueFromSent(tx, nodes);
+}
+
+/** Stages after the transaction has been sent: waiting, mined (or reverted, replaced, dropped), recorded, verified. */
+function continueFromSent(tx: FlowTx, nodes: PipelineNode[]): PipelineNode[] {
+  const be = tx.backend;
+  const beStage = (key: string) => be?.stages.find((s) => s.key === key);
+  const stage = tx.stage;
 
   // 4. Pending (mempool).
   const pendingDone = stage !== "pending";
