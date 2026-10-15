@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { Outlet, useLocation } from "react-router-dom";
 import { useTheme } from "@/lib/useTheme";
 import { ActionPanel } from "@/components/actions/ActionPanel";
@@ -16,7 +17,8 @@ import { TopBar } from "./TopBar";
 export function Shell() {
   useTheme();
   // The Playground shows the pipeline, mempool and activity itself; a second copy in the dock would only repeat it.
-  const hasOwnTxViews = useLocation().pathname.startsWith("/playground");
+  const { pathname } = useLocation();
+  const hasOwnTxViews = pathname.startsWith("/playground");
   return (
     <div className="flex h-full flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-accent focus:px-3 focus:py-1.5 focus:text-on-solid">
@@ -29,7 +31,7 @@ export function Shell() {
           <ActionPanel />
         </ActionsDrawer>
         <main id="main" className="min-w-0 flex-1 overflow-auto p-4">
-          <Outlet />
+          <ErrorBoundary resetKey={pathname}><Outlet /></ErrorBoundary>
         </main>
         <ExplainDrawer>
           <ExplainPanel />

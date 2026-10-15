@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChainStrip } from "@/components/chain/ChainStrip";
-import { EmptyState } from "@/components/layout/Panels";
+import { ChainSkeleton } from "@/components/common/Skeleton";
 import { ActivityFeed } from "@/components/pipeline/ActivityFeed";
 import { MempoolTray } from "@/components/pipeline/MempoolTray";
 import { TxPipeline } from "@/components/pipeline/TxPipeline";
@@ -41,7 +41,7 @@ export function Playground() {
 
       <section aria-label="The chain">
         <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">The chain</h2>
-        {!loaded ? <EmptyState title="Loading the chain…" /> : <ChainStrip records={records} verification={result} compact />}
+        {!loaded ? <ChainSkeleton /> : <ChainStrip records={records} verification={result} compact />}
       </section>
 
       <section aria-label="Your transaction">

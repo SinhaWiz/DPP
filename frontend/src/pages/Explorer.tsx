@@ -10,6 +10,7 @@ import { ProductTimeline } from "@/components/chain/ProductTimeline";
 import { RecordDetail } from "@/components/chain/RecordDetail";
 import { useProductTrail } from "@/lib/useProductTrail";
 import { Tooltip } from "@/components/common/Tooltip";
+import { ChainSkeleton } from "@/components/common/Skeleton";
 import { EmptyState } from "@/components/layout/Panels";
 import { useBrowserVerification } from "@/lib/useVerification";
 import { useLive } from "@/store/live";
@@ -40,7 +41,7 @@ export function Explorer() {
       <p className="mb-4 text-muted">The ledger as a chain of blocks. Hover a block to see what it holds.</p>
 
       {!loaded ? (
-        <EmptyState title="Loading the chain…" />
+        <ChainSkeleton />
       ) : (
         <>
           <ChainControls
