@@ -14,12 +14,26 @@ export function Term({ id, children }: { id: string; children?: React.ReactNode 
   );
 }
 
-/** Text in which `[[id]]` markers become glossary terms. */
+/** `**bold**` and `*italic*` inside a piece of plain text. */
+function Inline({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).filter((p) => p !== "");
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.startsWith("**") && p.endsWith("**") && p.length > 4 ? <strong key={i}>{p.slice(2, -2)}</strong>
+        : p.startsWith("*") && p.endsWith("*") && p.length > 2 ? <em key={i}>{p.slice(1, -1)}</em>
+        : <span key={i}>{p}</span>,
+      )}
+    </>
+  );
+}
+
+/** Text with `[[id]]` glossary markers, `**bold**` and `*italic*`. */
 export function Rich({ text }: { text: string }) {
   return (
     <>
       {parseRich(text).map((p, i) =>
-        p.kind === "term" ? <Term key={i} id={p.entry!.id}>{p.text}</Term> : <span key={i}>{p.text}</span>,
+        p.kind === "term" ? <Term key={i} id={p.entry!.id}>{p.text}</Term> : <Inline key={i} text={p.text} />,
       )}
     </>
   );

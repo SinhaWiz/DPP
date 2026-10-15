@@ -114,7 +114,7 @@ function Quiz({ lesson }: { lesson: Lesson }) {
         const chosen = run.answers[q.id];
         return (
           <fieldset key={q.id} className="space-y-1">
-            <legend className="font-medium">{q.question}</legend>
+            <legend className="font-medium"><Rich text={q.question} /></legend>
             {q.choices.map((c, i) => {
               const answered = chosen !== undefined;
               const right = i === q.answer;

@@ -32,3 +32,17 @@ describe("Rich", () => {
     expect(screen.getByText("A").parentElement).toHaveTextContent("A hash of the prevHash.");
   });
 });
+
+describe("Rich: bold and italic", () => {
+  it("renders **bold** and *italic* next to glossary terms", () => {
+    render(<p><Rich text="Press **Send**, then see *Would fail* and the [[gas]]." /></p>);
+    expect(screen.getByText("Send").tagName).toBe("STRONG");
+    expect(screen.getByText("Would fail").tagName).toBe("EM");
+    expect(screen.getByLabelText(/^gas:/)).toBeInTheDocument();
+  });
+
+  it("leaves a lone asterisk alone", () => {
+    render(<p><Rich text="2 * 3 is six" /></p>);
+    expect(screen.getByText("2 * 3 is six")).toBeInTheDocument();
+  });
+});

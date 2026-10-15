@@ -64,7 +64,7 @@ export function BreakRules({ env: injected }: { env?: RuleEnv | null }) {
   };
 
   return (
-    <details className="rounded-lg border border-border">
+    <details data-tour="break-rules" className="rounded-lg border border-border">
       <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium">Try to break the rules</summary>
       <div className="space-y-2 border-t border-border p-3">
         <p className="text-xs text-muted">

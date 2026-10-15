@@ -10,7 +10,7 @@ import { useBrowserVerification } from "@/lib/useVerification";
 
 /** Reads the whole app into one object, so lesson steps can ask questions about it. */
 export function useLessonCtx(): LessonCtx {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const live = useLive((s) => ({ records: s.records.length, products: s.products.length, txs: s.txs, mining: s.mining?.mode ?? null }));
   const { selected, productFilter } = useSelection();
   const address = useWallet((s) => s.wallet?.address ?? null);
@@ -24,6 +24,7 @@ export function useLessonCtx(): LessonCtx {
     const active = items.find((t) => t.id === activeId);
     return {
       route: pathname,
+      search,
       records: live.records,
       products: live.products,
       txCount: live.txs.length,
@@ -35,6 +36,7 @@ export function useLessonCtx(): LessonCtx {
       actingAs: address ? address.toLowerCase() : null,
       activeStage: active?.stage ?? null,
       reached: { simulated: reached("simulated", "simfail"), pending: reached("pending"), mined: reached("mined"), failed: reached("failed"), revoked: items.filter((t) => t.fn === "revokeReservation" || t.fn === "rejectReservation" || t.fn === "expireReservation").length },
+      minedByFn: items.reduce<Record<string, number>>((acc, t) => (t.history.some((h) => h.stage === "mined") ? { ...acc, [t.fn]: (acc[t.fn] ?? 0) + 1 } : acc), {}),
       verifyValid: result.valid,
       brokenRecords: result.brokenIndexes.length,
       tampers: tally.tampers,
@@ -42,5 +44,5 @@ export function useLessonCtx(): LessonCtx {
       fooled: tally.fooled,
       events: tally.events,
     };
-  }, [pathname, live, selected, productFilter, address, items, activeId, tally.tampers, tally.restores, tally.fooled, tally.events, result]);
+  }, [pathname, search, live, selected, productFilter, address, items, activeId, tally.tampers, tally.restores, tally.fooled, tally.events, result]);
 }

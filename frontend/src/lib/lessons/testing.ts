@@ -3,8 +3,8 @@ import type { Lesson, LessonCtx } from "./types";
 /** A reading of an empty, healthy app, for tests. */
 export function ctx(over: Partial<LessonCtx> = {}): LessonCtx {
   return {
-    route: "/", records: 0, products: 0, txCount: 0, failedTxs: 0, pendingTxs: 0, mining: "auto", selected: null, followedProduct: null, actingAs: null,
-    activeStage: null, reached: { simulated: 0, pending: 0, mined: 0, failed: 0, revoked: 0 }, verifyValid: true, brokenRecords: 0,
+    route: "/", search: "", records: 0, products: 0, txCount: 0, failedTxs: 0, pendingTxs: 0, mining: "auto", selected: null, followedProduct: null, actingAs: null,
+    activeStage: null, reached: { simulated: 0, pending: 0, mined: 0, failed: 0, revoked: 0 }, minedByFn: {}, verifyValid: true, brokenRecords: 0,
     tampers: 0, restores: 0, fooled: 0, events: {}, ...over,
   };
 }

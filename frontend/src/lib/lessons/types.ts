@@ -4,6 +4,8 @@ import type { Api } from "@/api/client";
 export interface LessonCtx {
   /** Current page, e.g. "/tamper". */
   route: string;
+  /** Its query string, e.g. "?record=3". */
+  search: string;
   records: number;
   products: number;
   txCount: number;
@@ -20,6 +22,8 @@ export interface LessonCtx {
   activeStage: string | null;
   /** How many transactions started in this browser reached each stage. */
   reached: { simulated: number; pending: number; mined: number; failed: number; revoked: number };
+  /** How many transactions of each contract function this browser has seen mined, e.g. { buy: 2 }. */
+  minedByFn: Record<string, number>;
   /** The browser's own verdict on the whole ledger. */
   verifyValid: boolean;
   brokenRecords: number;
