@@ -77,6 +77,11 @@ export function fakeApi(over: Record<string, unknown> = {}) {
       const r = (customRecords ?? validChain(n))[Number(index)]!;
       return { ...r, hashSteps: { fields: [], encoded: "0x", hash: r.hash }, tx: null as ApiTx | null };
     }),
+    verifyRange: vi.fn(async (from: number, to: number) => ({
+      from, to,
+      contract: { valid: true, brokenAt: "0", audit: { brokenIndexes: [] as string[], reasons: [] as number[] } },
+      offChain: { valid: true, brokenIndexes: [] as string[], contractVisibleIndexes: [] as string[] },
+    })),
     storageRecord: vi.fn(async (index: string) => storageRecordFixture(index)),
     trail: vi.fn(async (id: string) => ({
       product: { id, name: "Laptop", owner: ROLES[0]!.address, price: "0", forSale: false, reservation: null },
@@ -96,6 +101,12 @@ export function fakeApi(over: Record<string, unknown> = {}) {
       })),
       setMining: vi.fn(async (mode: "auto" | "manual" | "interval", intervalMs?: number) => ({ mode, automine: mode === "auto", intervalMs: mode === "interval" ? (intervalMs ?? 3000) : null })),
       mine: vi.fn(async (blocks = 1) => ({ mined: blocks, headBlock: 10 })),
+      attacks: vi.fn(async (): Promise<{ attacks: { groupId: string; mode: string; createdAt: number; writes: { recordIndex: string; field: string; slot: string; oldValue: string; newValue: string }[] }[] }> => ({ attacks: [] })),
+      snapshot: vi.fn(async (name: string) => ({ name, id: "0x1", block: 5, createdAt: 1 })),
+      restore: vi.fn(async (name: string) => ({ name, headBlock: 5, snapshot: { name, id: "0x2", block: 5, createdAt: 2 } })),
+      undo: vi.fn(async (groupId: string) => tamperResult(groupId, "undo")),
+      undoAll: vi.fn(async () => ({ undone: [] as string[], offChain: { valid: true, recordCount: 0, firstBrokenAt: null, firstBrokenOnChainAt: null, brokenIndexes: [] as string[] } })),
+      tamper: vi.fn(async (b: { mode?: string }) => tamperResult("g-1", (b.mode ?? "data") as "data")),
       increaseTime: vi.fn(async (seconds: number) => ({ timestamp: 1_800_000_000 + seconds })),
       runScenario: vi.fn(async (name: string) => ({ name, steps: [] as string[], result: {} as Record<string, unknown> })),
       dropTx: vi.fn(async (hash: string) => ({ hash, dropped: true as const })),
@@ -147,5 +158,18 @@ export function storageRecordFixture(index: string, over: { mismatchSlot?: numbe
     witness: { productId: "1", action: 1, actor: ROLES[0]!.address, prevHash: word(7), hash: word(8) },
     writtenBy: null as ApiTx | null,
     storageWrites: [] as { seq: number; slot: string; before: string; after: string; gasCost: number | null; kind: "new" | "update" | "cleared" | "unchanged" }[],
+  };
+}
+
+/** A lab tamper/undo response. */
+export function tamperResult(groupId: string, mode: "data" | "data+hash" | "rewrite-tail" | "undo", over: Record<string, unknown> = {}) {
+  return {
+    groupId, mode,
+    writes: [] as { recordIndex: string; field: string; slot: string; oldValue: string; newValue: string }[],
+    changed: [] as string[],
+    offChain: { valid: true, recordCount: 5, firstBrokenAt: null as string | null, firstBrokenOnChainAt: null as string | null, brokenIndexes: [] as string[] },
+    onChain: { valid: true, brokenAt: "0" } as { valid: boolean; brokenAt: string } | null,
+    comparison: { agree: true, contractFooled: false, notes: [] as string[] } as { agree: boolean; contractFooled: boolean; notes: string[] } | null,
+    ...over,
   };
 }

@@ -15,11 +15,6 @@ export const Playground = () => (
     <EmptyState title="Pick a role to start" />
   </Page>
 );
-export const TamperPage = () => (
-  <Page title="Tamper Lab" subtitle="Edit stored data on a local chain and watch the defences react.">
-    <EmptyState title="Only available on the local development chain" />
-  </Page>
-);
 export const LearnPage = () => (
   <Page title="Learn" subtitle="Guided lessons from “what is a block?” to breaking the chain.">
     <EmptyState title="Lessons are on their way" />

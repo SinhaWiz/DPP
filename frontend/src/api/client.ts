@@ -3,7 +3,7 @@ import {
   BalanceListSchema, BlockListSchema, DropResultSchema, ErrorSchema, LabStatusSchema, MineResultSchema, MiningStateSchema, ProductListSchema, ProductSchema,
   ProductTrailSchema, RecordDetailSchema, RecordListSchema, ReplaceResultSchema, RestoreResultSchema, ResetResultSchema,
   ScenarioListSchema, ScenarioRunSchema, SessionSchema, SnapshotListSchema, SnapshotSchema, StorageRecordSchema, TamperListSchema,
-  TamperResultSchema, TimeResultSchema, TxDetailSchema, TxListSchema, UndoAllSchema, VerifySchema,
+  TamperResultSchema, TimeResultSchema, TxDetailSchema, TxListSchema, UndoAllSchema, VerifyRangeSchema, VerifySchema,
 } from "@dpp/shared";
 
 export class ApiError extends Error {
@@ -78,6 +78,7 @@ export function createApi(baseUrl = "", fetchImpl: Fetch = (...a) => fetch(...a)
     blocks: (q: { from?: number; to?: number } = {}) => get(`/api/blocks${qs(q)}`, BlockListSchema),
     verify: () => get("/api/verify", VerifySchema),
     balances: () => get("/api/balances", BalanceListSchema),
+    verifyRange: (from: number, to: number) => get(`/api/verify/range${qs({ from, to })}`, VerifyRangeSchema),
     storageRecord: (index: string | number) => get(`/api/storage/records/${index}`, StorageRecordSchema),
 
     lab: {
