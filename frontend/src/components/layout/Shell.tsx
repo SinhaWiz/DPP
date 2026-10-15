@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { useTheme } from "@/lib/useTheme";
 import { ActionPanel } from "@/components/actions/ActionPanel";
+import { TxPipeline } from "@/components/pipeline/TxPipeline";
 import { ActionsDrawer, Dock, ExplainDrawer } from "./Panels";
 import { Notices } from "./Notices";
 import { AccountSwitcher, LinkStatus } from "./Status";
@@ -25,7 +26,7 @@ export function Shell() {
         </main>
         <ExplainDrawer />
       </div>
-      <Dock />
+      <Dock panels={{ pipeline: <TxPipeline /> }} />
     </div>
   );
 }

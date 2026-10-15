@@ -117,6 +117,10 @@ describe("pipelineNodes", () => {
 });
 
 describe("focusNode / isFinal", () => {
+  it("shows the latest failure when the story went on past an earlier one", () => {
+    const tx = flow({ stage: "failed", forced: true, hash: "0xa", simulation: { ok: false, error: explanation }, backend: backend([stage("pending"), stage("mined")]) });
+    expect(focusNode(pipelineNodes(tx)).key).toBe("failed"); // not the failed simulation before it
+  });
   it("prefers the failing node, then the current one, then the last", () => {
     expect(focusNode(pipelineNodes(flow({ stage: "pending", hash: "0xa", simulation: { ok: true } }))).key).toBe("pending");
     expect(focusNode(pipelineNodes(flow({ stage: "draft" }))).key).toBe("signed");

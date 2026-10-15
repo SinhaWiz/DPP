@@ -134,9 +134,12 @@ export function pipelineNodes(tx: FlowTx): PipelineNode[] {
   return nodes;
 }
 
-/** The node the user should be looking at: the failing one, else the current one, else the last. */
+/**
+ * The node the user should be looking at: the latest one that failed (the story may have continued
+ * past an earlier failure, e.g. a call sent anyway), else the one in progress, else the last.
+ */
 export function focusNode(nodes: PipelineNode[]): PipelineNode {
-  return nodes.find((n) => n.status === "failed") ?? nodes.find((n) => n.status === "current") ?? nodes.at(-1)!;
+  return [...nodes].reverse().find((n) => n.status === "failed") ?? nodes.find((n) => n.status === "current") ?? nodes.at(-1)!;
 }
 
 export const isFinal = (tx: FlowTx) => FINAL_STAGES.includes(tx.stage) && !(tx.stage === "mined" && tx.writesRecord && !tx.backend?.stages.some((s) => s.key === "verified"));

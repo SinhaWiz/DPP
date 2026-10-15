@@ -86,9 +86,9 @@ describe("panels", () => {
 
   it("shows an empty state in each dock tab", async () => {
     await renderAt();
-    for (const name of ["Transaction pipeline", "Mempool", "Activity"]) {
+    for (const [name, message] of [["Transaction pipeline", "No transaction yet"], ["Mempool", "No transactions yet"], ["Activity", "No transactions yet"]] as const) {
       await userEvent.click(screen.getByRole("tab", { name }));
-      expect(within(screen.getByRole("tabpanel")).getByText("No transactions yet")).toBeInTheDocument();
+      expect(within(screen.getByRole("tabpanel")).getByText(message)).toBeInTheDocument();
     }
   });
 });
