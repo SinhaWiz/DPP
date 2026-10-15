@@ -3,6 +3,7 @@ import { ACTION_META, VERIFICATION_META, type ApiRecord, type RecordCheck } from
 import { formatEth, shortHash } from "@/lib/format";
 
 export const CARD_W = 208;
+export const CARD_W_COMPACT = 124;
 export const LINK_W = 64;
 
 const BORDER: Record<RecordCheck["status"], string> = {
@@ -24,6 +25,8 @@ export interface BlockCardProps {
   /** De-emphasised, e.g. when another product is being followed. */
   dimmed?: boolean;
   focusable?: boolean;
+  /** Smaller card for seeing many records at once. */
+  compact?: boolean;
   onSelect?: () => void;
 }
 
@@ -32,7 +35,7 @@ export interface BlockCardProps {
  * it to its neighbours. Colour and an icon both show whether it passed verification.
  */
 export const BlockCard = forwardRef<HTMLButtonElement, BlockCardProps & React.ButtonHTMLAttributes<HTMLButtonElement>>(function BlockCard(
-  { record, check, selected = false, dimmed = false, focusable = true, onSelect, className = "", ...rest },
+  { record, check, selected = false, dimmed = false, focusable = true, compact = false, onSelect, className = "", ...rest },
   ref,
 ) {
   const meta = ACTION_META[record.action as keyof typeof ACTION_META];
@@ -48,7 +51,7 @@ export const BlockCard = forwardRef<HTMLButtonElement, BlockCardProps & React.Bu
       aria-pressed={selected}
       aria-label={`Record ${record.index}: ${meta?.label ?? record.actionLabel}${record.productName ? `, ${record.productName}` : ""}. ${verdict.label}.`}
       onClick={onSelect}
-      style={{ width: CARD_W }}
+      style={{ width: compact ? CARD_W_COMPACT : CARD_W }}
       className={`group relative flex h-36 shrink-0 flex-col overflow-hidden rounded-lg border-2 bg-surface text-left shadow-sm transition-opacity hover:shadow-md ${BORDER[status]} ${
         selected ? "ring-2 ring-accent ring-offset-2 ring-offset-bg" : ""
       } ${dimmed ? "opacity-35" : ""} ${className}`}
@@ -59,21 +62,25 @@ export const BlockCard = forwardRef<HTMLButtonElement, BlockCardProps & React.Bu
         <span className="font-mono text-sm font-semibold">#{record.index}</span>
         <span className="flex items-center gap-1 text-xs font-medium" style={{ color: `var(--action-${actionVar(record.action)})` }}>
           <span aria-hidden>{meta?.icon}</span>
-          {meta?.label ?? record.actionLabel}
+          {compact ? <span className="sr-only">{meta?.label ?? record.actionLabel}</span> : (meta?.label ?? record.actionLabel)}
         </span>
       </span>
 
-      <span className="truncate px-3 text-sm">
-        {record.productName ?? `Product #${record.productId}`}
-        <span className="text-muted"> #{record.productId}</span>
-      </span>
-      {price > 0n && <span className="px-3 text-xs text-muted">{formatEth(price)} ETH</span>}
+      {!compact && (
+        <>
+          <span className="truncate px-3 text-sm">
+            {record.productName ?? `Product #${record.productId}`}
+            <span className="text-muted"> #{record.productId}</span>
+          </span>
+          {price > 0n && <span className="px-3 text-xs text-muted">{formatEth(price)} ETH</span>}
+        </>
+      )}
 
-      <span className="mt-auto grid grid-cols-[auto_1fr] gap-x-2 border-t border-border bg-surface-2 px-3 py-1.5 font-mono text-[11px] leading-tight">
+      <span className={`mt-auto grid grid-cols-[auto_1fr] gap-x-2 border-t border-border bg-surface-2 px-3 py-1.5 font-mono leading-tight ${compact ? "text-[9px]" : "text-[11px]"}`}>
         <span className="text-muted">prev</span>
-        <span className={check && !check.linkOk ? "text-tampered" : ""}>{shortHash(record.prevHash)}</span>
+        <span className={check && !check.linkOk ? "text-tampered" : ""}>{compact ? shortHash(record.prevHash, 3, 2) : shortHash(record.prevHash)}</span>
         <span className="text-muted">hash</span>
-        <span className={check && !check.dataOk ? "text-tampered" : check?.anchorOk === false ? "text-anchor" : ""}>{shortHash(record.hash)}</span>
+        <span className={check && !check.dataOk ? "text-tampered" : check?.anchorOk === false ? "text-anchor" : ""}>{compact ? shortHash(record.hash, 3, 2) : shortHash(record.hash)}</span>
       </span>
 
       {status !== "intact" && (
