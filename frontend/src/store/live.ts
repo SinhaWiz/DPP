@@ -1,7 +1,7 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
-import type { ApiBlock, ApiProduct, ApiRecord, ApiRecordDetail, ApiSession, ApiTx, ApiVerify, WsHello, WsMessage } from "@dpp/shared";
+import type { ApiBlock, ApiMiningState, ApiProduct, ApiRecord, ApiRecordDetail, ApiSession, ApiTx, ApiVerify, WsHello, WsMessage } from "@dpp/shared";
 import { ApiError, type Api } from "@/api/client";
 import { LiveSocket, defaultSocketUrl, type SocketStatus } from "@/api/socket";
 
@@ -27,6 +27,8 @@ export interface LiveState {
   txsTotal: number;
   blocks: ApiBlock[];
   verify: ApiVerify | null;
+  /** How the chain is being mined; null when the lab is not available. */
+  mining: ApiMiningState | null;
   scenario: ScenarioProgress | null;
   /** The last bus message applied, for "what just happened" panels. */
   lastMessage: WsMessage | null;
@@ -34,10 +36,10 @@ export interface LiveState {
 
 const INITIAL: LiveState = {
   link: "connecting", error: null, loaded: false, session: null, records: [], recordsTotal: 0, products: [], txs: [], txsTotal: 0,
-  blocks: [], verify: null, scenario: null, lastMessage: null,
+  blocks: [], verify: null, mining: null, scenario: null, lastMessage: null,
 };
 
-type Kind = "session" | "records" | "recordsFull" | "products" | "txs" | "blocks" | "verify";
+type Kind = "session" | "records" | "recordsFull" | "products" | "txs" | "blocks" | "verify" | "mining";
 
 const PAGE = 500;
 
@@ -151,10 +153,21 @@ export class LiveController {
       if (wants.has("blocks")) tasks.push(api.blocks().then((r) => this.set({ blocks: r.blocks })));
       if (wants.has("verify")) tasks.push(api.verify().then((verify) => this.set({ verify })));
       await Promise.all(tasks);
+      if (wants.has("session") || wants.has("mining")) await this.loadMining();
       this.set({ link: this.socket?.state === "closed" ? "offline" : "live", error: null, loaded: true });
     } catch (e) {
       if (e instanceof ApiError && e.unreachable) this.set({ link: "offline", error: e.message });
       else this.set({ error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  /** Mining mode comes from the lab, which only exists on the local chain. */
+  private async loadMining(): Promise<void> {
+    if (!this.state.session?.lab.available) return this.set({ mining: null });
+    try {
+      this.set({ mining: (await this.d.api.lab.status()).mining });
+    } catch {
+      this.set({ mining: null });
     }
   }
 
@@ -220,6 +233,8 @@ export class LiveController {
       case "chain.reset":
         return this.mark("session", "recordsFull", "products", "txs", "blocks", "verify");
       case "mining.changed":
+        this.set({ mining: m.data as ApiMiningState });
+        return this.mark("session");
       case "indexer.status":
         return this.mark("session");
       case "lab.scenario": {
@@ -250,8 +265,12 @@ export function getLiveController(): LiveController {
 }
 
 /**
- * Selects part of the live state in a component. Selections are compared shallowly, so a selector
- * may return a fresh object or array (`s => ({ a: s.a, b: s.b })`) without causing endless re-renders.
+ * Selects part of the live state in a component. Selections are compared shallowly, so a selector may
+ * return a fresh object (`s => ({ a: s.a, b: s.b })`) without causing endless re-renders.
+ *
+ * Careful: the *values* inside that object are compared by reference. Select stable pieces of state
+ * (`s.txs`) and derive anything new (`filter`, `map`) in the component with `useMemo`; a selector that
+ * builds a new array or object for one of those values will re-render forever.
  */
 export function useLive<T>(selector: (s: LiveState) => T): T {
   return useStore(getLiveController().store, useShallow(selector));
