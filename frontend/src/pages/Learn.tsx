@@ -1,5 +1,6 @@
 import { useSearchParams } from "react-router-dom";
 import { Rich } from "@/components/learn/Term";
+import { StoryPlayer } from "@/components/learn/StoryPlayer";
 import { GLOSSARY } from "@/lib/glossary";
 import { LESSONS } from "@/lib/lessons";
 import type { Lesson } from "@/lib/lessons/types";
@@ -50,6 +51,8 @@ export function LearnPage({ lessons = LESSONS }: { lessons?: Lesson[] }) {
           <button type="button" onClick={() => useLessons.getState().resetProgress()} className="mt-1 text-xs text-muted underline">Reset my progress</button>
         )}
       </div>
+
+      <StoryPlayer />
 
       {lessons.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted">Lessons are on their way.</p>
