@@ -5,6 +5,7 @@ import { createRpc, type Rpc } from "./chain/rpc";
 import type { Config } from "./config";
 import { Repo } from "./db/repo";
 import { Indexer } from "./indexer/indexer";
+import { Lab } from "./lab/lab";
 import { MempoolWatcher } from "./lifecycle/mempoolWatcher";
 import { createLogger, type Logger } from "./logger";
 import { VerificationService } from "./verification";
@@ -18,6 +19,7 @@ export interface Services {
   verification: VerificationService;
   indexer: Indexer;
   watcher: MempoolWatcher;
+  lab: Lab;
   start(): void;
   stop(): Promise<void>;
 }
@@ -71,11 +73,13 @@ export function createServices(config: Config, overrides: ServiceOverrides = {})
     afterPass: async () => { await watcher.poll(); },
   });
   watcher = new MempoolWatcher({ rpc, repo, bus, log, indexer });
+  const lab = new Lab({ config, rpc, repo, bus, log, indexer, watcher, verification });
 
   return {
-    config, log, bus, rpc, repo, verification, indexer, watcher,
+    config, log, bus, rpc, repo, verification, indexer, watcher, lab,
     start: () => indexer.start(),
     stop: async () => {
+      lab.dispose();
       await indexer.stop();
       rpc.destroy();
       repo.close();

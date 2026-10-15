@@ -2,6 +2,7 @@ import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
 import { installErrorHandler } from "./api/errors";
 import { registerChainRoutes, registerLedgerRoutes } from "./api/routes";
+import { registerLabRoutes } from "./api/labRoutes";
 import { registerWebSocket } from "./api/ws";
 import type { Services } from "./services";
 
@@ -15,5 +16,6 @@ export async function buildApp(s: Services): Promise<FastifyInstance> {
   registerLedgerRoutes(app, s);
   registerChainRoutes(app, s);
   await registerWebSocket(app, s);
+  await registerLabRoutes(app, s);
   return app;
 }

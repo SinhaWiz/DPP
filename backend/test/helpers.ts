@@ -13,6 +13,8 @@ export interface Harness extends Pick<Services, "rpc" | "repo" | "bus" | "indexe
   services: Services;
   /** The HTTP app, built on first use. */
   app: () => Promise<FastifyInstance>;
+  /** POST a JSON body and parse the JSON response. */
+  post: <T = unknown>(url: string, payload?: unknown) => Promise<{ status: number; body: T }>;
   /** GET a path and parse the JSON body. */
   get: <T = unknown>(url: string) => Promise<{ status: number; body: T }>;
   /** Calls a market function as role `signer` (0 = Manufacturer … 4 = Outsider) and waits for it. */
@@ -23,12 +25,12 @@ export interface Harness extends Pick<Services, "rpc" | "repo" | "bus" | "indexe
 }
 
 /** Starts a real dev node, deploys the contracts and wires the same services the server uses, over an in-memory database. */
-export async function startHarness(opts: { traceStorage?: boolean } = {}): Promise<Harness> {
+export async function startHarness(opts: { traceStorage?: boolean; labGraceMs?: number } = {}): Promise<Harness> {
   const node = await startDevNode();
   const deployed = await deployContracts(node.provider);
   const deployment = await makeDeployment(node.provider, deployed);
   const config = loadConfig({}, {
-    RPC_URL: node.url, DB_PATH: ":memory:", LOG_LEVEL: "silent", POLL_MS: 50, TRACE_STORAGE: opts.traceStorage ?? true,
+    RPC_URL: node.url, DB_PATH: ":memory:", LOG_LEVEL: "silent", POLL_MS: 50, TRACE_STORAGE: opts.traceStorage ?? true, LAB_GRACE_MS: opts.labGraceMs ?? 150,
   });
   const services = createServices(config, { getDeployment: () => deployment });
   const market = deployed.market;
@@ -51,6 +53,10 @@ export async function startHarness(opts: { traceStorage?: boolean } = {}): Promi
     app,
     get: async (url) => {
       const res = await (await app()).inject({ method: "GET", url });
+      return { status: res.statusCode, body: res.json() };
+    },
+    post: async (url, payload) => {
+      const res = await (await app()).inject({ method: "POST", url, payload: payload as never });
       return { status: res.statusCode, body: res.json() };
     },
     call: async (signer, fn, ...rest) => {

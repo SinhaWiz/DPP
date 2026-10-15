@@ -26,6 +26,8 @@ const schema = z.object({
     .string()
     .default("http://localhost:5173,http://127.0.0.1:5173")
     .transform((v) => v.split(",").map((s) => s.trim()).filter(Boolean)),
+  /** After the last browser disconnects, wait this long before returning a paused chain to automine. */
+  LAB_GRACE_MS: z.coerce.number().int().min(0).default(5000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
 });
 

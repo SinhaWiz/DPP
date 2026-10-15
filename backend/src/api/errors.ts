@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { ZodError } from "zod";
+import { LabError } from "../lab/lab";
 
 export class HttpError extends Error {
   constructor(readonly status: number, readonly code: string, message: string) {
@@ -14,6 +15,7 @@ export const badRequest = (message: string) => new HttpError(400, "bad_request",
 export function installErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof HttpError) return reply.status(err.status).send({ error: { code: err.code, message: err.message } });
+    if (err instanceof LabError) return reply.status(err.status).send({ error: { code: err.code, message: err.message } });
     if (err instanceof ZodError) {
       const message = err.issues.map((i) => `${i.path.join(".") || "request"}: ${i.message}`).join("; ");
       return reply.status(400).send({ error: { code: "bad_request", message } });

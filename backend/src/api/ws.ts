@@ -71,9 +71,14 @@ export async function registerWebSocket(app: FastifyInstance, s: Services): Prom
       if (socket.readyState === socket.OPEN) socket.ping();
     }, PING_EVERY_MS);
 
+    s.lab.clientConnected();
+    let cleaned = false;
     const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
       clearInterval(heartbeat);
       unsubscribe();
+      s.lab.clientDisconnected();
     };
     socket.on("close", cleanup);
     socket.on("error", cleanup);
