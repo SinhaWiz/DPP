@@ -16,6 +16,10 @@ abstract contract HashChainLedger is ITraceabilityLedger {
     /// `prevHash` of the first record.
     bytes32 internal constant GENESIS_HASH = bytes32(0);
 
+    /// Bit flags returned by {auditRange}.
+    uint8 public constant REASON_DATA = 1;
+    uint8 public constant REASON_LINK = 2;
+
     Record[] private _ledger;
     mapping(uint256 productId => uint256[] ledgerIndexes) private _indexesByProduct;
 
@@ -65,6 +69,42 @@ abstract contract HashChainLedger is ITraceabilityLedger {
     {
         if (fromIndex > toIndex || toIndex > _ledger.length) revert InvalidRange(fromIndex, toIndex);
         return _verify(fromIndex, toIndex);
+    }
+
+    /// @inheritdoc ITraceabilityLedger
+    function inspectRecord(uint256 index) external view override returns (RecordInspection memory result) {
+        if (index >= _ledger.length) revert RecordNotFound(index);
+        result.record = _ledger[index];
+        (result.dataOk, result.linkOk, result.recomputedHash, result.expectedPrevHash) = _check(index);
+    }
+
+    /// @inheritdoc ITraceabilityLedger
+    function auditRange(uint256 fromIndex, uint256 toIndex)
+        external
+        view
+        override
+        returns (uint256[] memory brokenIndexes, uint8[] memory reasons)
+    {
+        if (fromIndex > toIndex || toIndex > _ledger.length) revert InvalidRange(fromIndex, toIndex);
+
+        uint256 maxCount = toIndex - fromIndex;
+        brokenIndexes = new uint256[](maxCount);
+        reasons = new uint8[](maxCount);
+
+        uint256 found;
+        for (uint256 i = fromIndex; i < toIndex; i++) {
+            (bool dataOk, bool linkOk, , ) = _check(i);
+            if (dataOk && linkOk) continue;
+            brokenIndexes[found] = i;
+            reasons[found] = (dataOk ? 0 : REASON_DATA) | (linkOk ? 0 : REASON_LINK);
+            found++;
+        }
+
+        // Shrink both arrays to the number of broken records.
+        assembly {
+            mstore(brokenIndexes, found)
+            mstore(reasons, found)
+        }
     }
 
     // ──────────────────────────── Internals ──────────────────────────
@@ -124,14 +164,23 @@ abstract contract HashChainLedger is ITraceabilityLedger {
         return _ledger.length == 0 ? GENESIS_HASH : _ledger[_ledger.length - 1].hash;
     }
 
+    /// @dev Stateless check of one stored record against the stored record before it.
+    function _check(uint256 index)
+        private
+        view
+        returns (bool dataOk, bool linkOk, bytes32 recomputedHash, bytes32 expectedPrevHash)
+    {
+        Record memory record = _ledger[index];
+        expectedPrevHash = index == 0 ? GENESIS_HASH : _ledger[index - 1].hash;
+        recomputedHash = _computeHash(record);
+        dataOk = recomputedHash == record.hash;
+        linkOk = record.prevHash == expectedPrevHash;
+    }
+
     function _verify(uint256 fromIndex, uint256 toIndex) private view returns (bool, uint256) {
-        bytes32 expectedPrev = fromIndex == 0 ? GENESIS_HASH : _ledger[fromIndex - 1].hash;
         for (uint256 i = fromIndex; i < toIndex; i++) {
-            Record storage record = _ledger[i];
-            if (record.prevHash != expectedPrev || record.hash != _computeHash(record)) {
-                return (false, i);
-            }
-            expectedPrev = record.hash;
+            (bool dataOk, bool linkOk, , ) = _check(i);
+            if (!dataOk || !linkOk) return (false, i);
         }
         return (true, 0);
     }

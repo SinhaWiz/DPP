@@ -28,6 +28,15 @@ interface ITraceabilityLedger {
         bytes32 hash;         // keccak256 over all fields above
     }
 
+    /// Result of re-checking one stored record.
+    struct RecordInspection {
+        Record record;            // the record as stored
+        bytes32 recomputedHash;   // hash recomputed from the stored fields
+        bytes32 expectedPrevHash; // hash of the stored record before it (GENESIS_HASH for #0)
+        bool dataOk;              // recomputedHash == record.hash
+        bool linkOk;              // record.prevHash == expectedPrevHash
+    }
+
     // ───────────────────────────── Events ────────────────────────────
 
     event RecordAppended(uint256 indexed index, uint256 indexed productId, Action action, bytes32 hash);
@@ -68,4 +77,21 @@ interface ITraceabilityLedger {
         external
         view
         returns (bool valid, uint256 brokenAt);
+
+    /// @notice Re-check one record and report *why* it is or isn't valid.
+    /// @dev Unlike {verifyLedger} this never stops at the first problem, so it
+    ///      can be called on any record to learn whether its data or its link is wrong.
+    function inspectRecord(uint256 index) external view returns (RecordInspection memory);
+
+    /// @notice List every broken record in [fromIndex, toIndex), with the reason.
+    /// @dev `reasons[i]` is a bitmask for `brokenIndexes[i]`:
+    ///      1 = data mismatch (stored hash != recomputed hash),
+    ///      2 = link mismatch (prevHash != hash of the record before).
+    ///      Unlike {verifyRange}, which stops at the first broken record, this
+    ///      reports all of them. Keep ranges to a few hundred records to stay
+    ///      within the gas cap of an `eth_call`.
+    function auditRange(uint256 fromIndex, uint256 toIndex)
+        external
+        view
+        returns (uint256[] memory brokenIndexes, uint8[] memory reasons);
 }
