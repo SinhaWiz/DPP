@@ -1,7 +1,7 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
-import type { ApiBlock, ApiProduct, ApiRecord, ApiSession, ApiTx, ApiVerify, WsHello, WsMessage } from "@dpp/shared";
+import type { ApiBlock, ApiProduct, ApiRecord, ApiRecordDetail, ApiSession, ApiTx, ApiVerify, WsHello, WsMessage } from "@dpp/shared";
 import { ApiError, type Api } from "@/api/client";
 import { LiveSocket, defaultSocketUrl, type SocketStatus } from "@/api/socket";
 
@@ -61,8 +61,28 @@ export class LiveController {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private flushing: Promise<void> | null = null;
   private running = false;
+  private details = new Map<string, Promise<ApiRecordDetail>>();
 
   constructor(private readonly d: LiveDeps) {}
+
+  /** The API client, for components that need something the store does not hold. */
+  get api(): Api {
+    return this.d.api;
+  }
+
+  /**
+   * One record in full (creating transaction, hash breakdown). Cached, because hovering the same
+   * block repeatedly should not hit the server; the cache is dropped whenever history can change.
+   */
+  recordDetail(index: string): Promise<ApiRecordDetail> {
+    let p = this.details.get(index);
+    if (!p) {
+      p = this.d.api.record(index);
+      p.catch(() => this.details.delete(index)); // do not cache failures
+      this.details.set(index, p);
+    }
+    return p;
+  }
 
   get state(): LiveState {
     return this.store.getState();
@@ -180,6 +200,7 @@ export class LiveController {
 
   apply(m: WsMessage): void {
     this.set({ lastMessage: m });
+    if (["verification.changed", "lab.tampered", "lab.restored", "chain.rewound", "chain.reset"].includes(m.type)) this.details.clear();
     switch (m.type) {
       case "block.new":
         return this.mark("blocks", "session");

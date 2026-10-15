@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import { computeHash, GENESIS_HASH, type ApiRecord, type ApiSession, type LedgerRecord, type Role, type WsMessage } from "@dpp/shared";
+import { computeHash, GENESIS_HASH, type ApiRecord, type ApiTx, type ApiSession, type LedgerRecord, type Role, type WsMessage } from "@dpp/shared";
 import { LiveController } from "@/store/live";
 
 export const H = (n: number) => "0x" + n.toString(16).padStart(64, "0");
@@ -72,6 +72,10 @@ export function fakeApi(over: Record<string, unknown> = {}) {
     records: vi.fn(async ({ offset = 0, limit = 500 }: { offset?: number; limit?: number }) => {
       const all = customRecords ?? validChain(n);
       return { total: all.length, offset, limit, records: all.slice(offset, offset + limit) };
+    }),
+    record: vi.fn(async (index: string) => {
+      const r = (customRecords ?? validChain(n))[Number(index)]!;
+      return { ...r, hashSteps: { fields: [], encoded: "0x", hash: r.hash }, tx: null as ApiTx | null };
     }),
     products: vi.fn(async () => ({ products: [] })),
     txs: vi.fn(async () => ({ total: 0, txs: [] })),

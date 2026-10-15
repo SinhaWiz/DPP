@@ -1,5 +1,7 @@
 import { EmptyState } from "@/components/layout/Panels";
+import { BlockTooltip } from "@/components/chain/BlockTooltip";
 import { ChainStrip } from "@/components/chain/ChainStrip";
+import { Tooltip } from "@/components/common/Tooltip";
 import { useBrowserVerification } from "@/lib/useVerification";
 import { useLive } from "@/store/live";
 
@@ -15,7 +17,15 @@ export function Explorer() {
       {!loaded ? (
         <EmptyState title="Loading the chain…" />
       ) : (
-        <ChainStrip records={records} verification={result} />
+        <ChainStrip
+          records={records}
+          verification={result}
+          renderCard={(card, record) => (
+            <Tooltip content={<BlockTooltip record={record} check={result.checks[Number(record.index)]} />} placement="top" delay={250}>
+              {card}
+            </Tooltip>
+          )}
+        />
       )}
     </div>
   );
