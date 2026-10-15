@@ -13,8 +13,15 @@ import {HashChainLedger} from "./HashChainLedger.sol";
 contract BuySellTraceability is IBuySellTraceability, HashChainLedger {
     // ───────────────────────────── State ─────────────────────────────
 
+    /// How long a buyer's escrow deposit stays reserved before anyone may expire it.
+    uint64 public constant override RESERVATION_PERIOD = 1 days;
+
     uint256 public override productCount;
     mapping(uint256 productId => Product) private _products;
+    mapping(uint256 productId => Reservation) private _reservations;
+
+    /// ETH owed to accounts (sale proceeds and refunds), pulled with {withdraw}.
+    mapping(address account => uint256 amount) public override pendingWithdrawals;
 
     // ──────────────────────────── Modifiers ──────────────────────────
 
@@ -38,6 +45,7 @@ contract BuySellTraceability is IBuySellTraceability, HashChainLedger {
 
     /// @inheritdoc IBuySellTraceability
     function listForSale(uint256 productId, uint256 price) external override onlyProductOwner(productId) {
+        _requireNotReserved(productId);
         if (price == 0) revert InvalidPrice();
 
         _products[productId].price = price;
@@ -48,6 +56,7 @@ contract BuySellTraceability is IBuySellTraceability, HashChainLedger {
 
     /// @inheritdoc IBuySellTraceability
     function cancelListing(uint256 productId) external override onlyProductOwner(productId) {
+        _requireNotReserved(productId);
         Product storage product = _products[productId];
         if (!_isListed(product)) revert NotListed(productId);
 
@@ -62,6 +71,7 @@ contract BuySellTraceability is IBuySellTraceability, HashChainLedger {
     ///      the ETH is forwarded to the seller.
     function buy(uint256 productId) external payable override {
         Product storage product = _product(productId);
+        _requireNotReserved(productId);
         _requirePurchasable(product);
 
         address seller = product.owner;
@@ -74,7 +84,87 @@ contract BuySellTraceability is IBuySellTraceability, HashChainLedger {
         _pay(seller, price);
     }
 
+    // ─────────────────────── Escrow purchase flow ────────────────────
+
+    /// @inheritdoc IBuySellTraceability
+    function reserve(uint256 productId) external payable override {
+        Product storage product = _product(productId);
+        _requireNotReserved(productId);
+        _requirePurchasable(product);
+
+        uint64 expiresAt = uint64(block.timestamp) + RESERVATION_PERIOD;
+        _reservations[productId] = Reservation({buyer: msg.sender, amount: msg.value, expiresAt: expiresAt});
+
+        _appendRecord(productId, Action.Reserved, msg.sender, product.owner, msg.value);
+        emit ReservationCreated(productId, msg.sender, msg.value, expiresAt);
+    }
+
+    /// @inheritdoc IBuySellTraceability
+    function confirmSale(uint256 productId) external override onlyProductOwner(productId) {
+        Reservation memory reservation = _activeReservation(productId);
+        if (block.timestamp > reservation.expiresAt) revert ReservationExpired(productId, reservation.expiresAt);
+
+        Product storage product = _products[productId];
+        delete _reservations[productId];
+        _transferOwnership(product, reservation.buyer);
+        pendingWithdrawals[msg.sender] += reservation.amount;
+
+        _appendRecord(productId, Action.Sold, msg.sender, reservation.buyer, reservation.amount);
+        emit SaleConfirmed(productId, msg.sender, reservation.buyer, reservation.amount);
+        emit ProductSold(productId, msg.sender, reservation.buyer, reservation.amount);
+    }
+
+    /// @inheritdoc IBuySellTraceability
+    function revokeReservation(uint256 productId) external override {
+        Reservation memory reservation = _activeReservation(productId);
+        if (reservation.buyer != msg.sender) revert NotReservationBuyer(productId, msg.sender);
+
+        // The buyer is the actor; the seller is the counterparty.
+        _endReservation(productId, reservation, _products[productId].owner, RevocationReason.BuyerCancelled);
+    }
+
+    /// @inheritdoc IBuySellTraceability
+    function rejectReservation(uint256 productId) external override onlyProductOwner(productId) {
+        Reservation memory reservation = _activeReservation(productId);
+        _endReservation(productId, reservation, reservation.buyer, RevocationReason.SellerRejected);
+    }
+
+    /// @inheritdoc IBuySellTraceability
+    function expireReservation(uint256 productId) external override {
+        Reservation memory reservation = _activeReservation(productId);
+        if (block.timestamp <= reservation.expiresAt) {
+            revert ReservationNotExpired(productId, reservation.expiresAt);
+        }
+        _endReservation(productId, reservation, reservation.buyer, RevocationReason.Expired);
+    }
+
+    /// @inheritdoc IBuySellTraceability
+    /// @dev The balance is zeroed before the transfer, so a re-entering
+    ///      receiver finds nothing left to withdraw.
+    function withdraw() external override {
+        uint256 amount = pendingWithdrawals[msg.sender];
+        if (amount == 0) revert NothingToWithdraw(msg.sender);
+
+        pendingWithdrawals[msg.sender] = 0;
+        (bool ok, ) = payable(msg.sender).call{value: amount}("");
+        if (!ok) revert WithdrawFailed(msg.sender);
+
+        emit Withdrawn(msg.sender, amount);
+    }
+
     // ───────────────────────────── Views ─────────────────────────────
+
+    /// @inheritdoc IBuySellTraceability
+    function getReservation(uint256 productId) external view override returns (Reservation memory) {
+        _product(productId);
+        return _reservations[productId];
+    }
+
+    /// @inheritdoc IBuySellTraceability
+    function isReserved(uint256 productId) external view override returns (bool) {
+        _product(productId);
+        return _reservations[productId].buyer != address(0);
+    }
 
     /// @inheritdoc IBuySellTraceability
     function getProduct(uint256 productId) external view override returns (Product memory) {
@@ -118,6 +208,33 @@ contract BuySellTraceability is IBuySellTraceability, HashChainLedger {
     }
 
     // ──────────────────────────── Internals ──────────────────────────
+
+    /// @dev Reverts while another buyer's deposit holds the product.
+    function _requireNotReserved(uint256 productId) private view {
+        if (_reservations[productId].buyer != address(0)) revert ProductReserved(productId);
+    }
+
+    /// @dev Returns the live reservation, reverting if there is none.
+    function _activeReservation(uint256 productId) private view returns (Reservation memory reservation) {
+        _product(productId);
+        reservation = _reservations[productId];
+        if (reservation.buyer == address(0)) revert NotReserved(productId);
+    }
+
+    /// @dev Ends a reservation without a sale: the deposit is credited back to
+    ///      the buyer and the reversal is appended to the ledger. Nothing is erased.
+    function _endReservation(
+        uint256 productId,
+        Reservation memory reservation,
+        address counterparty,
+        RevocationReason reason
+    ) private {
+        delete _reservations[productId];
+        pendingWithdrawals[reservation.buyer] += reservation.amount;
+
+        _appendRecord(productId, Action.Revoked, msg.sender, counterparty, reservation.amount);
+        emit ReservationRevoked(productId, msg.sender, reservation.buyer, reservation.amount, reason);
+    }
 
     /// @dev Returns the product, reverting if the id was never registered.
     function _product(uint256 productId) private view returns (Product storage product) {

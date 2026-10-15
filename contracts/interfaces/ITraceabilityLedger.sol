@@ -12,7 +12,9 @@ interface ITraceabilityLedger {
         Registered, // product created, creator becomes first owner
         Listed,     // owner put product up for sale at a price
         Delisted,   // owner withdrew the listing
-        Sold        // buyer paid, ownership transferred
+        Sold,       // buyer paid, ownership transferred
+        Reserved,   // buyer's payment is held in escrow, product is locked
+        Revoked     // a reservation was cancelled and the payment returned
     }
 
     /// One "block" in the ledger.
