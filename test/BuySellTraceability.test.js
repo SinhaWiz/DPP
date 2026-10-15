@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { tamperWithPrice } = require("./helpers/tamper");
 
 const Action = { Registered: 0n, Listed: 1n, Delisted: 2n, Sold: 3n };
 const PAGE = 100; // large enough to fetch a whole history in one call
@@ -235,30 +236,3 @@ describe("BuySellTraceability", () => {
     });
   });
 });
-
-/**
- * Simulates an attacker rewriting a record's price directly in contract storage
- * (possible only on a local test network, via hardhat_setStorageAt).
- */
-async function tamperWithPrice(c, recordIndex) {
-  const slot = await findLedgerSlot(c);
-  const base = BigInt(ethers.keccak256(ethers.toBeHex(slot, 32)));
-  // Record layout: index | timestamp | productId | action+actor (packed) | counterparty | price | prevHash | hash
-  const recordSize = 8n;
-  const priceOffset = 5n;
-  const target = ethers.toBeHex(base + BigInt(recordIndex) * recordSize + priceOffset, 32);
-  await ethers.provider.send("hardhat_setStorageAt", [
-    await c.getAddress(), target, ethers.toBeHex(999n, 32),
-  ]);
-}
-
-// Locate the ledger array's slot by probing: its length slot equals ledgerLength().
-async function findLedgerSlot(c) {
-  const addr = await c.getAddress();
-  const len = await c.ledgerLength();
-  for (let s = 0; s < 10; s++) {
-    const v = await ethers.provider.getStorage(addr, s);
-    if (BigInt(v) === len) return s;
-  }
-  throw new Error("ledger slot not found");
-}
