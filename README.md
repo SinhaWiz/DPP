@@ -198,6 +198,17 @@ keccak256(abi.encode(index, timestamp, productId, action, actor, counterparty, p
 
 `prevHash` is part of the hashed data. That is what makes it a chain and not just a list.
 
+### Two witnesses: storage and logs
+
+Every record exists in two places:
+
+1. **Contract storage**: the `Record` in the `_ledger` array. `verifyLedger()` checks this copy.
+2. **The transaction log**: the `RecordAppended` event, emitted in the same transaction.
+
+The event carries both halves of the link: `RecordAppended(index, productId, action, actor, prevHash, hash)`. `index`, `productId` and `actor` are indexed, so you can filter by them. (In ethers, filter arguments are positional over *all* parameters, with `null` for the ones you skip: `c.filters.RecordAppended(null, null, null, someActor)`.)
+
+Logs are written once and cannot be changed afterwards, so they are an independent witness. If storage is rewritten so that it still verifies (see §9), the log still holds the original hashes, and the two copies no longer agree. Emitting the extra fields costs a few hundred more gas per record.
+
 ### The `Record` struct
 
 | Field | Meaning |
