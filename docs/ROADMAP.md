@@ -17,6 +17,20 @@ Together they will:
 
 ---
 
+## Implementation status
+
+All phases (0–19) are implemented and committed one sub-phase at a time; `git log` shows them as "Phase N.M: …". The checkboxes below are the original plan and were not ticked one by one. Where the result differs from the plan:
+
+- **Playground page added.** One workspace with the chain, the transaction pipeline, the mempool and the activity feed. Because it shows those itself, the shared bottom dock is not drawn on that page.
+- **Tamper Lab off the local chain** shows an explanation of why it is unavailable (instead of removing the page from the menu), and the mining controls are replaced by a note. The backend refuses the lab unless the node is chain 31337 and the API is bound to loopback.
+- **Read-only fallback** (11.6): when the backend is unreachable the page reads the ledger and event log straight from the node and verifies them in the browser.
+- **Testing (Phase 18)**: 90 contract tests (statement/function/line coverage 100 %, branches 97 %), 48 shared, 207 backend, about 610 frontend, and 24 Playwright tests in a real browser. The accessibility check runs axe on every page in both themes. The performance check opens a 1,240-record ledger in about 2.5 s with a virtualised strip; the indexer backfill time on its own was not measured separately from the 10 s target. A manual MetaMask checklist is in `docs/MANUAL_TESTING.md`. CI is `.github/workflows/ci.yml`; it has not yet run on GitHub.
+- **Node version**: the backend uses `node:sqlite`, so it needs a recent Node (developed on 26.5, CI on 24).
+- **Documentation (19.1)**: the README gained section 15 (the visual lab) and 16 (testnet). Animated captures of the pages are not included.
+- **Sepolia (19.3)** is supported through a git-ignored `.env` (`.env.example`); it has not been run against the live network.
+
+---
+
 ## Contents
 
 - [Part A: Analysis](#part-a-analysis)
