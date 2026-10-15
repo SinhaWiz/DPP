@@ -18,7 +18,8 @@
     "test:all": "npm test && npm test -w @dpp/shared && npm test -w @dpp/backend",
     "export:abi": "hardhat run scripts/export-abi.js",
     "export:fixture": "hardhat run scripts/export-fixture.js",
-    "export:openapi": "npm run export:openapi -w @dpp/shared"
+    "export:openapi": "npm run export:openapi -w @dpp/shared",
+    "coverage": "hardhat coverage"
   },
   "keywords": [],
   "author": "",
