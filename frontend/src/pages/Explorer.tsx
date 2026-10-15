@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { BlockTooltip } from "@/components/chain/BlockTooltip";
 import { ChainControls } from "@/components/chain/ChainControls";
+import { FailedAttempts } from "@/components/chain/FailedAttempts";
 import { ChainStrip, type ChainStripHandle } from "@/components/chain/ChainStrip";
 import { Minimap } from "@/components/chain/Minimap";
 import { ProductTimeline } from "@/components/chain/ProductTimeline";
@@ -67,6 +68,7 @@ export function Explorer() {
           <div className="mt-1">
             <Minimap checks={result.checks} visible={visible} onJump={jump} />
           </div>
+          <FailedAttempts />
         </>
       )}
 
