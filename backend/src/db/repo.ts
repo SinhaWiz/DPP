@@ -263,11 +263,13 @@ export class Repo {
         .all(from, nonce, exceptHash) as SqlRow[]
     ).map((r) => this.txFrom(r));
   }
-  countTxs(state?: LifecycleState): number {
-    const r = (state
-      ? this.db.prepare("select count(*) as n from transactions where lifecycle_state = ?").get(state)
-      : this.db.prepare("select count(*) as n from transactions").get()) as SqlRow;
-    return Number(r.n);
+  countTxs(state?: LifecycleState, from?: string): number {
+    const where: string[] = [];
+    const args: string[] = [];
+    if (state) { where.push("lifecycle_state = ?"); args.push(state); }
+    if (from) { where.push("lower(from_addr) = lower(?)"); args.push(from); }
+    const sql = `select count(*) as n from transactions ${where.length ? "where " + where.join(" and ") : ""}`;
+    return Number((this.db.prepare(sql).get(...args) as SqlRow).n);
   }
 
   // ── events ──

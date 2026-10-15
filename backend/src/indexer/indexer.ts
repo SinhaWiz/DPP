@@ -94,6 +94,11 @@ export class Indexer {
     return this.deployment;
   }
 
+  /** Reads ledger records straight from the contract (what `getRecords` returns right now). */
+  async chainRecords(offset: number, limit: number) {
+    return this.reader ? this.reader.records(offset, limit) : [];
+  }
+
   /** What the contract itself says about the ledger's integrity (`verifyLedger` and `auditRange`). */
   async onChainVerdict(): Promise<Awaited<ReturnType<LedgerReader["onChainVerdict"]>> | null> {
     return this.reader ? this.reader.onChainVerdict() : null;
@@ -294,7 +299,7 @@ export class Indexer {
         maxFee: t.maxFeePerGas ? toBig(t.maxFeePerGas).toString() : t.gasPrice ? toBig(t.gasPrice).toString() : null,
         maxPriorityFee: t.maxPriorityFeePerGas ? toBig(t.maxPriorityFeePerGas).toString() : null,
         input: t.input,
-        functionName: call?.functionName ?? null,
+        functionName: call?.functionName ?? (t.to === null ? "deploy" : null),
         args: call?.args ?? null,
         status,
         gasUsed: toBig(receipt.gasUsed).toString(),

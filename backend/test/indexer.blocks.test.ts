@@ -24,7 +24,7 @@ describe("indexer: sessions, blocks and transactions", () => {
     expect(report.blocks).toBe(3);
     expect(report.txs).toBe(3);
 
-    const txs = h.repo.listTxs({ limit: 10 }).filter((t) => t.functionName);
+    const txs = h.repo.listTxs({ limit: 10 }).filter((t) => t.functionName && t.functionName !== "deploy");
     expect(txs.map((t) => t.functionName)).toEqual(["buy", "listForSale", "registerProduct"]);
     const buy = txs[0]!;
     expect(buy.args).toEqual({ productId: "1" });
@@ -56,6 +56,12 @@ describe("indexer: sessions, blocks and transactions", () => {
     expect(t.functionName).toBe("listForSale");
     expect(BigInt(t.gasUsed!)).toBeGreaterThan(0n);
     expect(h.repo.eventsForTx(hash)).toEqual([]);
+  });
+
+  it("labels the contracts' own deployment transactions", () => {
+    const deploys = h.repo.listTxs({ limit: 100 }).filter((t) => t.functionName === "deploy");
+    expect(deploys).toHaveLength(2);
+    expect(deploys.every((t) => t.to === null && t.status === 1)).toBe(true);
   });
 
   it("is idempotent: a second pass finds nothing new", async () => {

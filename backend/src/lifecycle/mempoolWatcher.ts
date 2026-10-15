@@ -113,7 +113,7 @@ export class MempoolWatcher {
       value: value.toString(), gasLimit: toBig(t.gas).toString(),
       maxFee: t.maxFeePerGas ? toBig(t.maxFeePerGas).toString() : t.gasPrice ? toBig(t.gasPrice).toString() : null,
       maxPriorityFee: t.maxPriorityFeePerGas ? toBig(t.maxPriorityFeePerGas).toString() : null,
-      input: t.input, functionName: call?.functionName ?? null, args: call?.args ?? null,
+      input: t.input, functionName: call?.functionName ?? (t.to === null ? "deploy" : null), args: call?.args ?? null,
       status: null, gasUsed: null, effectiveGasPrice: null, revertData: null, revertName: null, revertArgs: null,
       revertApprox: false, lifecycleState: "pending", replacedBy: null, firstSeenAt: Date.now(), minedAt: null,
     };

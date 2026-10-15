@@ -1,12 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
-  ACTION_META, BlocksQuery, makeAddressLabeler, RecordsQuery, TxsQuery, type ApiProduct, type ApiProductTrail, type ApiRecord,
-  type ApiSession,
+  ACTION_META, BlocksQuery, compareWithContract, explainHash, ledgerBaseSlot, makeAddressLabeler, recordSlotViews, RecordsQuery,
+  TxsQuery, word, type ApiProduct, type ApiProductTrail, type ApiRecord, type ApiRecordDetail, type ApiSession,
+  type ApiStorageRecord, type ApiTxDetail, type ApiVerify,
 } from "@dpp/shared";
 import type { Services } from "../services";
 import { labAvailability } from "../lab/guard";
-import { blockDto, productDto, recordDto, txDto } from "./dto";
+import { buildStages } from "../lifecycle/stages";
+import { rowToRecord, rowToWitness } from "../verification";
+import { blockDto, productDto, recordDto, revertDto, storageWriteDto, txDto } from "./dto";
 import { badRequest, notFound } from "./errors";
 
 const decimalParam = (name: string) => z.string().regex(/^\d+$/, `${name} must be a non-negative integer`);
@@ -102,4 +105,102 @@ export function registerLedgerRoutes(app: FastifyInstance, s: Services): void {
   });
 }
 
-export { badRequest, decimalParam, TxsQuery, BlocksQuery, txDto, blockDto };
+export function registerChainRoutes(app: FastifyInstance, s: Services): void {
+  // ── one record in detail ──
+  app.get("/api/records/:index", async (req): Promise<ApiRecordDetail> => {
+    const { index } = z.object({ index: decimalParam("index") }).parse(req.params);
+    const row = s.repo.getRecord(BigInt(index));
+    if (!row) throw notFound(`Record #${index}`);
+    const tx = row.txHash ? s.repo.getTx(row.txHash) : null;
+    return {
+      ...recordDto(s, row),
+      hashSteps: explainHash(rowToRecord(row)),
+      tx: tx ? txDto(s, tx) : null,
+    };
+  });
+
+  // ── transactions ──
+  app.get("/api/txs", async (req) => {
+    const q = TxsQuery.parse(req.query);
+    const txs = s.repo.listTxs({ state: q.state, from: q.from, limit: q.limit, offset: q.offset });
+    return { total: s.repo.countTxs(q.state, q.from), txs: txs.map((t) => txDto(s, t)) };
+  });
+
+  app.get("/api/txs/:hash", async (req): Promise<ApiTxDetail> => {
+    const { hash } = z.object({ hash: z.string().regex(/^0x[0-9a-fA-F]{64}$/, "hash must be 0x followed by 64 hex characters") }).parse(req.params);
+    const tx = s.repo.getTx(hash) ?? s.repo.getTx(hash.toLowerCase());
+    if (!tx) throw notFound(`Transaction ${hash.slice(0, 10)}…`);
+
+    const record = s.repo.recordForTx(tx.hash);
+    const check = record ? s.verification.get().checks[Number(record.index)] : undefined;
+    return {
+      ...txDto(s, tx),
+      stages: buildStages(tx, record, check),
+      events: s.repo.eventsForTx(tx.hash).map((e) => ({ logIndex: e.logIndex, name: e.name, args: e.args })),
+      storageWrites: s.repo.storageWritesForTx(tx.hash).map(storageWriteDto),
+      record: record ? recordDto(s, record) : null,
+      explanation: revertDto(s, tx),
+    };
+  });
+
+  // ── Ethereum blocks ──
+  app.get("/api/blocks", async (req) => {
+    const q = BlocksQuery.parse(req.query);
+    const latest = s.repo.latestBlock()?.number ?? 0;
+    const to = Math.min(q.to ?? latest, latest);
+    const from = Math.max(q.from ?? Math.max(0, to - 19), 0);
+    if (to - from > 199) throw badRequest("Ask for at most 200 blocks at a time");
+    return { blocks: s.repo.listBlocks(from, to).map((b) => blockDto(s, b)) };
+  });
+
+  // ── verification: the off-chain engine next to the contract's own check ──
+  app.get("/api/verify", async (): Promise<ApiVerify> => {
+    const offChain = s.verification.summary();
+    const verdict = await s.indexer.onChainVerdict().catch(() => null);
+    return {
+      offChain,
+      onChain: verdict
+        ? {
+            valid: verdict.valid,
+            brokenAt: verdict.brokenAt.toString(),
+            audit: { brokenIndexes: verdict.audit.brokenIndexes.map(String), reasons: verdict.audit.reasons },
+          }
+        : null,
+      comparison: verdict ? compareWithContract(s.verification.get(), verdict) : null,
+    };
+  });
+
+  // ── storage explorer: the 8 slots of a record, expected vs actual ──
+  app.get("/api/storage/records/:index", async (req): Promise<ApiStorageRecord> => {
+    const { index } = z.object({ index: decimalParam("index") }).parse(req.params);
+    const row = s.repo.getRecord(BigInt(index));
+    const deployment = s.indexer.getDeployment();
+    if (!row || !deployment) throw notFound(`Record #${index}`);
+
+    const address = deployment.contracts.market.address;
+    const views = recordSlotViews(rowToRecord(row), deployment.storage);
+    const actual = await Promise.all(
+      views.map((v) => s.rpc.send<string>("eth_getStorageAt", [address, v.slotHex, "latest"]).then((x) => "0x" + x.replace(/^0x/, "").padStart(64, "0"))),
+    );
+    const onChain = (await s.indexer.chainRecords(Number(row.index), 1))[0] ?? null;
+    const tx = row.txHash ? s.repo.getTx(row.txHash) : null;
+    const slotSet = new Set(views.map((v) => v.slotHex));
+    const w = rowToWitness(row);
+
+    return {
+      index: row.index.toString(),
+      baseSlot: word(ledgerBaseSlot(deployment.storage)),
+      slots: views.map((v, i) => ({
+        position: v.position, slot: v.slotHex, expected: v.value, actual: actual[i]!,
+        match: BigInt(actual[i]!) === BigInt(v.value),
+        members: v.members.map((m) => ({ name: m.name, offset: m.offset, bytes: m.bytes, decoded: m.decoded })),
+      })),
+      abiRecord: onChain ? { hash: onChain.hash, prevHash: onChain.prevHash, price: onChain.price.toString() } : null,
+      witness: w ? { productId: w.productId.toString(), action: w.action, actor: w.actor, prevHash: w.prevHash, hash: w.hash } : null,
+      writtenBy: tx ? txDto(s, tx) : null,
+      storageWrites: tx ? s.repo.storageWritesForTx(tx.hash).filter((x) => slotSet.has(x.slot)).map(storageWriteDto) : [],
+    };
+  });
+}
+
+export { badRequest, decimalParam };
