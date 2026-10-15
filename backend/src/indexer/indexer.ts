@@ -99,6 +99,11 @@ export class Indexer {
     return this.reader ? this.reader.records(offset, limit) : [];
   }
 
+  /** Wei an account can pull with `withdraw()` right now. */
+  async pendingWithdrawals(account: string): Promise<bigint> {
+    return this.reader ? this.reader.pendingWithdrawals(account) : 0n;
+  }
+
   /** `ledgerLength()` as the contract reports it right now. */
   async chainLedgerLength(): Promise<number> {
     return this.reader ? this.reader.ledgerLength() : 0;

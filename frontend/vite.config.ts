@@ -23,6 +23,10 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     css: false,
-    testTimeout: 15_000,
+    testTimeout: 30_000,
+    hookTimeout: 90_000,
+    // a few tests start a real Hardhat node; do not run too many files at once
+    pool: "forks",
+    poolOptions: { forks: { maxForks: 4, minForks: 1 } },
   },
 });

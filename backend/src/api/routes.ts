@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   ACTION_META, BlocksQuery, compareWithContract, explainHash, ledgerBaseSlot, makeAddressLabeler, recordSlotViews, RecordsQuery,
   TxsQuery, word, type ApiProduct, type ApiProductTrail, type ApiRecord, type ApiRecordDetail, type ApiSession,
-  type ApiStorageRecord, type ApiTxDetail, type ApiVerify,
+  type ApiBalances, type ApiStorageRecord, type ApiTxDetail, type ApiVerify,
 } from "@dpp/shared";
 import type { Services } from "../services";
 import { labAvailability } from "../lab/guard";
@@ -151,6 +151,24 @@ export function registerChainRoutes(app: FastifyInstance, s: Services): void {
     const from = Math.max(q.from ?? Math.max(0, to - 19), 0);
     if (to - from > 199) throw badRequest("Ask for at most 200 blocks at a time");
     return { blocks: s.repo.listBlocks(from, to).map((b) => blockDto(s, b)) };
+  });
+
+  // ── who has money waiting (pull payments) ──
+  app.get("/api/balances", async (): Promise<ApiBalances> => {
+    const deployment = s.indexer.getDeployment();
+    if (!deployment) return { balances: [], contractBalance: "0" };
+    const [balances, contractBalance] = await Promise.all([
+      Promise.all(
+        deployment.roles.map(async (r) => ({
+          address: r.address,
+          name: r.name,
+          withdrawable: (await s.indexer.pendingWithdrawals(r.address)).toString(),
+          balance: BigInt(await s.rpc.send<string>("eth_getBalance", [r.address, "latest"])).toString(),
+        })),
+      ),
+      s.rpc.send<string>("eth_getBalance", [deployment.contracts.market.address, "latest"]).then((b) => BigInt(b).toString()),
+    ]);
+    return { balances, contractBalance };
   });
 
   // ── verification: the off-chain engine next to the contract's own check ──

@@ -160,6 +160,16 @@ export const SessionSchema = z.object({
 export const RecordListSchema = z.object({ total: z.number().int(), offset: z.number().int(), limit: z.number().int(), records: z.array(RecordSchema) });
 export const ProductListSchema = z.object({ products: z.array(ProductSchema) });
 export const TxListSchema = z.object({ total: z.number().int(), txs: z.array(TxSchema) });
+export const BalanceSchema = z.object({
+  address,
+  name: z.string().nullable().describe("Role name, when the account has one"),
+  withdrawable: decimal.describe("wei the account can pull with withdraw()"),
+  balance: decimal.describe("wei in the account's wallet"),
+});
+export const BalanceListSchema = z.object({ balances: z.array(BalanceSchema), contractBalance: decimal.describe("wei held by the market contract (escrow deposits and unclaimed funds)") });
+export type ApiBalance = z.infer<typeof BalanceSchema>;
+export type ApiBalances = z.infer<typeof BalanceListSchema>;
+
 export const BlockListSchema = z.object({ blocks: z.array(BlockSchema) });
 
 export const HashStepSchema = z.object({ name: z.string(), solidityType: z.string(), value: z.string(), word: z.string() });
@@ -345,6 +355,7 @@ export const ROUTES: RouteSpec[] = [
   { method: "get", path: "/api/txs", summary: "Transactions by lifecycle state (including failed, replaced and dropped)", query: TxsQuery, response: TxListSchema, tag: "transactions" },
   { method: "get", path: "/api/txs/{hash}", summary: "One transaction with its lifecycle stages, events and storage writes", response: TxDetailSchema, tag: "transactions" },
   { method: "get", path: "/api/blocks", summary: "Ethereum blocks with the transactions and records they contain", query: BlocksQuery, response: BlockListSchema, tag: "chain" },
+  { method: "get", path: "/api/balances", summary: "Money waiting to be withdrawn, per account, and what the contract holds", response: BalanceListSchema, tag: "ledger" },
   { method: "get", path: "/api/verify", summary: "Off-chain verdict next to the contract's verifyLedger / auditRange", response: VerifySchema, tag: "ledger" },
   { method: "get", path: "/api/storage/records/{index}", summary: "Raw storage slots of a record next to their decoded values", response: StorageRecordSchema, tag: "ledger" },
   { method: "get", path: "/api/lab/status", summary: "Mining mode and number of connected clients", response: LabStatusSchema, tag: "lab" },

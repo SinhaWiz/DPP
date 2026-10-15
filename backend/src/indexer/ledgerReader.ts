@@ -32,6 +32,10 @@ export class LedgerReader {
     return { product: toProduct(p), reservation: reservation.buyer === ZERO_ADDRESS ? null : reservation };
   }
 
+  async pendingWithdrawals(account: string): Promise<bigint> {
+    return this.call<bigint>("pendingWithdrawals", account);
+  }
+
   /** What the contract itself reports about the chain's integrity. */
   async onChainVerdict(): Promise<{ valid: boolean; brokenAt: bigint; audit: { brokenIndexes: bigint[]; reasons: number[] } }> {
     const length = await this.ledgerLength();

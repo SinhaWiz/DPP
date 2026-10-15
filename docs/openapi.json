@@ -3079,6 +3079,85 @@
         }
       }
     },
+    "/api/balances": {
+      "get": {
+        "tags": [
+          "ledger"
+        ],
+        "summary": "Money waiting to be withdrawn, per account, and what the contract holds",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "balances": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "address": {
+                            "type": "string",
+                            "pattern": "^0x[0-9a-fA-F]{40}$"
+                          },
+                          "name": {
+                            "description": "Role name, when the account has one",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "withdrawable": {
+                            "type": "string",
+                            "pattern": "^\\d+$",
+                            "description": "wei the account can pull with withdraw()"
+                          },
+                          "balance": {
+                            "type": "string",
+                            "pattern": "^\\d+$",
+                            "description": "wei in the account's wallet"
+                          }
+                        },
+                        "required": [
+                          "address",
+                          "name",
+                          "withdrawable",
+                          "balance"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "contractBalance": {
+                      "type": "string",
+                      "pattern": "^\\d+$",
+                      "description": "wei held by the market contract (escrow deposits and unclaimed funds)"
+                    }
+                  },
+                  "required": [
+                    "balances",
+                    "contractBalance"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/verify": {
       "get": {
         "tags": [

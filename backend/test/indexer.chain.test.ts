@@ -250,7 +250,8 @@ describe("indexer: sessions and deployments", () => {
     h.indexer.start();
     await h.call(0, "registerProduct", "Laptop");
     const deadline = Date.now() + 8000;
-    while (h.repo.recordCount() < 1 && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50));
+    // the record is copied part-way through a pass; "live" is announced when that pass finishes
+    while ((h.repo.recordCount() < 1 || h.indexer.status().state !== "live") && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50));
     expect(h.repo.recordCount()).toBe(1);
     expect(h.indexer.status().state).toBe("live");
     await h.indexer.stop();
