@@ -1,5 +1,6 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 import type { ApiBlock, ApiProduct, ApiRecord, ApiSession, ApiTx, ApiVerify, WsHello, WsMessage } from "@dpp/shared";
 import { ApiError, type Api } from "@/api/client";
 import { LiveSocket, defaultSocketUrl, type SocketStatus } from "@/api/socket";
@@ -227,7 +228,10 @@ export function getLiveController(): LiveController {
   return instance;
 }
 
-/** Selects part of the live state in a component. */
+/**
+ * Selects part of the live state in a component. Selections are compared shallowly, so a selector
+ * may return a fresh object or array (`s => ({ a: s.a, b: s.b })`) without causing endless re-renders.
+ */
 export function useLive<T>(selector: (s: LiveState) => T): T {
-  return useStore(getLiveController().store, selector);
+  return useStore(getLiveController().store, useShallow(selector));
 }

@@ -1,6 +1,8 @@
 import { Outlet } from "react-router-dom";
 import { useTheme } from "@/lib/useTheme";
 import { ActionsDrawer, Dock, ExplainDrawer } from "./Panels";
+import { Notices } from "./Notices";
+import { AccountSwitcher, LinkStatus } from "./Status";
 import { TopBar } from "./TopBar";
 
 /** The page frame: top bar, a main area between two drawers, and the dock underneath. */
@@ -11,7 +13,8 @@ export function Shell() {
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-accent focus:px-3 focus:py-1.5 focus:text-white">
         Skip to content
       </a>
-      <TopBar />
+      <TopBar status={<><LinkStatus /><AccountSwitcher /></>} />
+      <Notices />
       <div className="flex min-h-0 flex-1">
         <ActionsDrawer />
         <main id="main" className="min-w-0 flex-1 overflow-auto p-4">

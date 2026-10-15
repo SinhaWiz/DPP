@@ -1,39 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import type { WsMessage } from "@dpp/shared";
 import { ApiError } from "@/api/client";
 import { LiveController } from "./live";
 
-const H = (n: number) => "0x" + n.toString(16).padStart(64, "0");
-const A = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
-
-const record = (i: number) => ({
-  index: String(i), productId: "1", productName: "Laptop", action: 0, actionLabel: "Registered", actor: A, counterparty: "0x" + "00".repeat(20),
-  price: "0", timestamp: "1", prevHash: H(i), hash: H(i + 1), txHash: H(100 + i), blockNumber: i + 1,
-  check: { dataOk: true, linkOk: true, anchorOk: true, status: "intact", onChainStatus: "intact", reasonMask: 0, reasons: [], recomputedHash: H(i + 1), expectedPrevHash: H(i) },
-  witness: null,
-});
-const session = (over: object = {}) => ({
-  chainId: 31337, sessionId: H(1), contracts: null, deployBlock: 1, headBlock: 5, indexedBlock: 5, indexer: { state: "live", message: null },
-  ledgerLength: 0, productCount: 0, seq: 0, roles: [], mining: { automine: true }, lab: { available: true, reason: null }, features: { debugTrace: true }, ...over,
-});
-const verifyOk = { offChain: { valid: true, recordCount: 0, firstBrokenAt: null, firstBrokenOnChainAt: null, brokenIndexes: [] }, onChain: null, comparison: null };
-
-function fakeApi(over: Record<string, unknown> = {}) {
-  let n = 0;
-  return {
-    session: vi.fn(async () => session()),
-    records: vi.fn(async ({ offset = 0, limit = 500 }: { offset?: number; limit?: number }) => {
-      const all = Array.from({ length: n }, (_, i) => record(i));
-      return { total: n, offset, limit, records: all.slice(offset, offset + limit) };
-    }),
-    products: vi.fn(async () => ({ products: [] })),
-    txs: vi.fn(async () => ({ total: 0, txs: [] })),
-    blocks: vi.fn(async () => ({ blocks: [] })),
-    verify: vi.fn(async () => verifyOk),
-    setRecordCount: (c: number) => { n = c; },
-    ...over,
-  };
-}
+import { fakeApi, msg } from "@/test/fakes";
 
 function setup(apiOver: Record<string, unknown> = {}) {
   const api = fakeApi(apiOver);
@@ -41,7 +10,6 @@ function setup(apiOver: Record<string, unknown> = {}) {
   const live = new LiveController({ api: api as never, createSocket: () => socket as never, debounceMs: 0 });
   return { api, socket, live };
 }
-const msg = (type: WsMessage["type"], data: unknown = {}, seq = 1): WsMessage => ({ seq, type, at: 1, data });
 
 describe("LiveController: loading", () => {
   it("loads everything on start and becomes live", async () => {

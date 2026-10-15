@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Shell } from "@/components/layout/Shell";
+import { AppProviders } from "@/providers";
 import { Explorer, LearnPage, NotFound, Playground, StoragePage, TamperPage } from "@/pages/Pages";
 
 export const AppRoutes = () => (
@@ -18,7 +19,9 @@ export const AppRoutes = () => (
 export function App() {
   return (
     <BrowserRouter>
-      <AppRoutes />
+      <AppProviders>
+        <AppRoutes />
+      </AppProviders>
     </BrowserRouter>
   );
 }
