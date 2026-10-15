@@ -3,6 +3,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import type { ApiRecord, VerificationResult } from "@dpp/shared";
 import { useSelection } from "@/store/selection";
 import { BlockCard, CARD_W, CARD_W_COMPACT, LINK_W } from "./BlockCard";
+import { useStatusEffects } from "@/lib/statusEffects";
 import { FreshWrapper, useFreshRecords } from "./Fresh";
 import { ChainLink, GenesisMarker } from "./ChainLink";
 
@@ -24,6 +25,8 @@ export interface ChainStripProps {
   showBlocks?: boolean;
   /** Animate records that arrive after the view was first shown. */
   animate?: boolean;
+  /** Animate changes in a record's verdict (cracks, snapped links, seals, repairs). */
+  effects?: boolean;
   /** Reports the range of records on screen. */
   onVisibleRange?: (range: [number, number]) => void;
 }
@@ -38,11 +41,12 @@ export interface ChainStripHandle {
  * thousand records are as cheap as ten. It follows the newest record until you scroll away.
  */
 export const ChainStrip = forwardRef<ChainStripHandle, ChainStripProps>(function ChainStrip(
-  { records, verification, renderCard, initialWidth = 1200, compact = false, showBlocks = false, animate = true, onVisibleRange },
+  { records, verification, renderCard, initialWidth = 1200, compact = false, showBlocks = false, animate = true, effects: showEffects = true, onVisibleRange },
   handle,
 ) {
   const cardW = compact ? CARD_W_COMPACT : CARD_W;
   const fresh = useFreshRecords(records, animate);
+  const fx = useStatusEffects(verification.checks, showEffects);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { selected, select, productFilter } = useSelection();
   const [focus, setFocus] = useState(0);
@@ -177,6 +181,7 @@ export const ChainStrip = forwardRef<ChainStripHandle, ChainStripProps>(function
                           focusable={focus === idx}
                           compact={compact}
                           fresh={fresh.has(rec!.index)}
+                          effect={fx.cards.get(idx)}
                           data-record={idx}
                           onFocus={() => setFocus(idx)}
                           onSelect={() => select(BigInt(rec!.index))}
@@ -185,7 +190,7 @@ export const ChainStrip = forwardRef<ChainStripHandle, ChainStripProps>(function
                       const wrapped = renderCard ? renderCard(card, rec!) : card;
                       return <FreshWrapper fresh={fresh.has(rec!.index)}>{wrapped}</FreshWrapper>;
                     })()}
-                    {idx < records.length - 1 && <ChainLink ok={linkOk[idx + 1] ?? true} from={BigInt(rec!.index)} fresh={fresh.has(records[idx + 1]!.index)} />}
+                    {idx < records.length - 1 && <ChainLink ok={linkOk[idx + 1] ?? true} from={BigInt(rec!.index)} fresh={fresh.has(records[idx + 1]!.index)} effect={fx.links.get(idx + 1)} />}
                   </>
                 )}
                 </div>

@@ -128,3 +128,43 @@ body {
 /* a pulsing outline for things that are waiting */
 @keyframes pulse-ring { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--status-pending) 55%, transparent); } 50% { box-shadow: 0 0 0 5px transparent; } }
 .pulse-ring { animation: pulse-ring 1.6s ease-in-out infinite; }
+
+/*
+ * Chain-breaking effects. Each animation ends on a visible highlight and keeps it (fill-mode: both), so
+ * with prefers-reduced-motion, where durations collapse to nothing, the user still sees what changed.
+ */
+@keyframes fx-crack {
+  0% { transform: translateX(0); }
+  15% { transform: translateX(-5px) rotate(-1deg); }
+  30% { transform: translateX(5px) rotate(1deg); }
+  45% { transform: translateX(-3px); }
+  60% { transform: translateX(3px); }
+  100% { transform: translateX(0); box-shadow: 0 0 0 3px var(--status-data); }
+}
+@keyframes fx-seal {
+  0% { box-shadow: 0 0 0 0 transparent; filter: saturate(0.3); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--status-anchor) 45%, transparent); }
+  100% { box-shadow: 0 0 0 3px var(--status-anchor); filter: none; }
+}
+@keyframes fx-flag { 0% { box-shadow: 0 0 0 0 transparent; } 40% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--status-data) 40%, transparent); } 100% { box-shadow: 0 0 0 3px var(--status-data); } }
+@keyframes fx-resnap {
+  0% { box-shadow: 0 0 0 0 transparent; transform: scale(0.97); }
+  60% { transform: scale(1.02); }
+  100% { box-shadow: 0 0 0 3px var(--status-intact); transform: scale(1); }
+}
+@keyframes fx-link-snap {
+  0% { transform: translateX(0) scaleX(1); }
+  25% { transform: translateX(-4px) scaleX(1.15); }
+  50% { transform: translateX(4px) scaleX(0.8); }
+  100% { transform: translateX(0) scaleX(1); }
+}
+@keyframes fx-stamp { 0% { transform: scale(2.4) rotate(-18deg); opacity: 0; } 70% { transform: scale(0.9) rotate(4deg); opacity: 1; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+
+[data-effect="crack"] { animation: fx-crack 0.7s ease-in-out both; animation-delay: var(--fx-delay, 0ms); }
+[data-effect="seal"] { animation: fx-seal 0.9s ease-out both; animation-delay: var(--fx-delay, 0ms); }
+[data-effect="flag"] { animation: fx-flag 0.8s ease-out both; animation-delay: var(--fx-delay, 0ms); }
+[data-effect="resnap"] { animation: fx-resnap 0.7s ease-out both; animation-delay: var(--fx-delay, 0ms); }
+[data-link-effect="snap"] { animation: fx-link-snap 0.6s ease-in-out both; animation-delay: var(--fx-delay, 0ms); }
+[data-link-effect="resnap"] { animation: fx-resnap 0.7s ease-out both; animation-delay: var(--fx-delay, 0ms); }
+.fx-stamp { animation: fx-stamp 0.45s ease-out both; animation-delay: var(--fx-delay, 0ms); }
+.fx-crack-lines { animation: fx-seal 0.5s ease-out both; animation-delay: var(--fx-delay, 0ms); }

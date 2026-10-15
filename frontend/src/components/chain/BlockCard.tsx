@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
 import { ACTION_META, VERIFICATION_META, type ApiRecord, type RecordCheck } from "@dpp/shared";
 import { formatEth, shortHash } from "@/lib/format";
+import type { CardEffect } from "@/lib/statusEffects";
 import { ScrambleText } from "./Fresh";
 
 export const CARD_W = 208;
@@ -30,6 +31,8 @@ export interface BlockCardProps {
   compact?: boolean;
   /** The record just arrived: play the "linking and hashing" animation. */
   fresh?: boolean;
+  /** Something about this record's verdict just changed: play the matching effect. */
+  effect?: CardEffect;
   onSelect?: () => void;
 }
 
@@ -38,7 +41,7 @@ export interface BlockCardProps {
  * it to its neighbours. Colour and an icon both show whether it passed verification.
  */
 export const BlockCard = forwardRef<HTMLButtonElement, BlockCardProps & React.ButtonHTMLAttributes<HTMLButtonElement>>(function BlockCard(
-  { record, check, selected = false, dimmed = false, focusable = true, compact = false, fresh = false, onSelect, className = "", ...rest },
+  { record, check, selected = false, dimmed = false, focusable = true, compact = false, fresh = false, effect, onSelect, className = "", ...rest },
   ref,
 ) {
   const meta = ACTION_META[record.action as keyof typeof ACTION_META];
@@ -54,7 +57,8 @@ export const BlockCard = forwardRef<HTMLButtonElement, BlockCardProps & React.Bu
       aria-pressed={selected}
       aria-label={`Record ${record.index}: ${meta?.label ?? record.actionLabel}${record.productName ? `, ${record.productName}` : ""}. ${verdict.label}.`}
       onClick={onSelect}
-      style={{ width: compact ? CARD_W_COMPACT : CARD_W }}
+      data-effect={effect?.kind}
+      style={{ width: compact ? CARD_W_COMPACT : CARD_W, ...(effect ? ({ "--fx-delay": `${effect.delayMs}ms` } as React.CSSProperties) : {}) }}
       className={`group relative flex h-36 shrink-0 flex-col overflow-hidden rounded-lg border-2 bg-surface text-left shadow-sm transition-opacity hover:shadow-md ${BORDER[status]} ${
         selected ? "ring-2 ring-accent ring-offset-2 ring-offset-bg" : ""
       } ${dimmed ? "opacity-35" : ""} ${className}`}
@@ -87,6 +91,15 @@ export const BlockCard = forwardRef<HTMLButtonElement, BlockCardProps & React.Bu
         <span className="text-muted">hash</span>
         <span className={check && !check.dataOk ? "text-tampered" : check?.anchorOk === false ? "text-anchor" : ""}>{fresh ? <ScrambleText value={compact ? shortHash(record.hash, 3, 2) : shortHash(record.hash)} active /> : compact ? shortHash(record.hash, 3, 2) : shortHash(record.hash)}</span>
       </span>
+
+      {effect?.kind === "crack" && (
+        <svg aria-hidden data-testid="crack" className="fx-crack-lines pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <polyline points="62,0 54,22 66,38 50,58 60,74 48,100" fill="none" stroke="var(--status-data)" strokeWidth="2" strokeLinejoin="round" />
+        </svg>
+      )}
+      {effect?.kind === "seal" && (
+        <span aria-hidden data-testid="seal" className="fx-stamp pointer-events-none absolute bottom-9 right-2 text-2xl" style={{ color: "var(--status-anchor)" }}>⚓</span>
+      )}
 
       {status !== "intact" && (
         <span

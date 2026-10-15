@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import type { LinkEffect } from "@/lib/statusEffects";
 import { usePrefersReducedMotion } from "@/lib/useReducedMotion";
 import { LINK_W } from "./BlockCard";
 
@@ -10,10 +11,12 @@ export interface ChainLinkProps {
   highlighted?: boolean;
   /** The link was just formed: draw it in. */
   fresh?: boolean;
+  /** The link just broke or was repaired. */
+  effect?: LinkEffect;
 }
 
 /** The connector between two blocks. Green and solid when the hashes match; red and dashed when they don't. */
-export function ChainLink({ ok, from, highlighted = false, fresh = false }: ChainLinkProps) {
+export function ChainLink({ ok, from, highlighted = false, fresh = false, effect }: ChainLinkProps) {
   const reduce = usePrefersReducedMotion();
   const Line = fresh && !reduce ? motion.line : "line";
   const drawProps = fresh && !reduce ? { initial: { pathLength: 0 }, animate: { pathLength: 1 }, transition: { duration: 0.6, delay: 0.5 } } : {};
@@ -24,8 +27,9 @@ export function ChainLink({ ok, from, highlighted = false, fresh = false }: Chai
       role="img"
       aria-label={ok ? `Link intact: ${label}` : `Link broken: ${label} is false`}
       data-link-ok={ok}
+      data-link-effect={effect?.kind}
       className="relative flex h-36 shrink-0 items-center justify-center"
-      style={{ width: LINK_W }}
+      style={{ width: LINK_W, ...(effect ? ({ "--fx-delay": `${effect.delayMs}ms` } as React.CSSProperties) : {}) }}
     >
       <svg width={LINK_W} height="24" viewBox={`0 0 ${LINK_W} 24`} aria-hidden>
         <Line
