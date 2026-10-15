@@ -45,6 +45,17 @@ interface ITraceabilityLedger {
     /// @notice A single ledger record.
     function getRecord(uint256 index) external view returns (Record memory);
 
+    /// @notice A page of the ledger, oldest first.
+    /// @dev Out-of-range offsets yield an empty page and `limit` is clamped to
+    ///      what is available, so a huge `limit` is safe.
+    /// @param offset Number of records to skip
+    /// @param limit Maximum number of records to return
+    function getRecords(uint256 offset, uint256 limit) external view returns (Record[] memory);
+
+    /// @notice Hash of the newest record, or the all-zero genesis hash for an empty ledger.
+    /// @dev This is the `prevHash` the next record will carry.
+    function headHash() external view returns (bytes32);
+
     /// @notice Verify every hash and link in the whole ledger.
     /// @return valid true if the chain is intact
     /// @return brokenAt index of the first bad record (only meaningful if !valid)

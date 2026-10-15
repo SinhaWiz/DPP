@@ -63,6 +63,12 @@ interface IBuySellTraceability is ITraceabilityLedger {
     /// @notice Details of one product.
     function getProduct(uint256 productId) external view returns (Product memory);
 
+    /// @notice A page of products in id order (ids start at 1).
+    /// @dev Out-of-range offsets yield an empty page; `limit` is clamped.
+    /// @param offset Number of products to skip (offset 0 starts at product #1)
+    /// @param limit Maximum number of products to return
+    function getProducts(uint256 offset, uint256 limit) external view returns (Product[] memory);
+
     /// @notice Whether the product is currently listed for sale.
     function isForSale(uint256 productId) external view returns (bool);
 

@@ -33,6 +33,25 @@ abstract contract HashChainLedger is ITraceabilityLedger {
     }
 
     /// @inheritdoc ITraceabilityLedger
+    function getRecords(uint256 offset, uint256 limit) external view override returns (Record[] memory page) {
+        uint256 length = _ledger.length;
+        if (offset >= length) return page;
+
+        uint256 remaining = length - offset;
+        uint256 count = limit < remaining ? limit : remaining;
+
+        page = new Record[](count);
+        for (uint256 i = 0; i < count; i++) {
+            page[i] = _ledger[offset + i];
+        }
+    }
+
+    /// @inheritdoc ITraceabilityLedger
+    function headHash() external view override returns (bytes32) {
+        return _headHash();
+    }
+
+    /// @inheritdoc ITraceabilityLedger
     function verifyLedger() external view override returns (bool valid, uint256 brokenAt) {
         return _verify(0, _ledger.length);
     }

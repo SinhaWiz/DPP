@@ -82,6 +82,20 @@ contract BuySellTraceability is IBuySellTraceability, HashChainLedger {
     }
 
     /// @inheritdoc IBuySellTraceability
+    function getProducts(uint256 offset, uint256 limit) external view override returns (Product[] memory page) {
+        uint256 total = productCount;
+        if (offset >= total) return page;
+
+        uint256 remaining = total - offset;
+        uint256 count = limit < remaining ? limit : remaining;
+
+        page = new Product[](count);
+        for (uint256 i = 0; i < count; i++) {
+            page[i] = _products[offset + i + 1];
+        }
+    }
+
+    /// @inheritdoc IBuySellTraceability
     function isForSale(uint256 productId) external view override returns (bool) {
         return _isListed(_product(productId));
     }
