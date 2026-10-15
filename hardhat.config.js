@@ -12,6 +12,10 @@ require("@nomicfoundation/hardhat-toolbox");
 //    for the step-by-step mining mode.
 const devNode = process.env.DEV_NODE === "1";
 
+// Optional public testnet settings live in a git-ignored `.env` (see `.env.example`).
+try { process.loadEnvFile(); } catch { /* no .env file: fine */ }
+const { SEPOLIA_RPC_URL, DEPLOYER_PRIVATE_KEY } = process.env;
+
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
@@ -28,5 +32,7 @@ module.exports = {
       ...(devNode ? { throwOnTransactionFailures: false, mining: { auto: true, interval: 0 } } : {}),
     },
     localhost: { url: process.env.HARDHAT_RPC_URL || "http://127.0.0.1:8545" },
+    // Only defined when configured, so a normal checkout never needs (or sees) a key.
+    ...(SEPOLIA_RPC_URL && DEPLOYER_PRIVATE_KEY ? { sepolia: { url: SEPOLIA_RPC_URL, chainId: 11155111, accounts: [DEPLOYER_PRIVATE_KEY] } } : {}),
   },
 };

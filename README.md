@@ -4,6 +4,8 @@ A small Solidity project that simulates a **buy and sell marketplace** and recor
 
 Everything runs on your own machine. It uses Hardhat's built-in local Ethereum network, so no real money, wallet or internet connection is needed to run it.
 
+> **Want to see it rather than read it?** `npm run dev` starts a local chain, a backend and a web app (**Ledger Lab**) where you can watch each transaction travel step by step, make one fail, take records back, and break the chain on purpose. See [15. The visual lab](#15-the-visual-lab).
+
 ---
 
 ## Table of contents
@@ -22,6 +24,8 @@ Everything runs on your own machine. It uses Hardhat's built-in local Ethereum n
 12. [Design decisions and limitations](#12-design-decisions-and-limitations)
 13. [Troubleshooting](#13-troubleshooting)
 14. [Possible extensions](#14-possible-extensions)
+15. [The visual lab](#15-the-visual-lab) (architecture, running it, Demo vs MetaMask, page tour, API, escrow and revocation, testing)
+16. [Optional: a public testnet](#16-optional-a-public-testnet)
 
 ---
 
@@ -109,25 +113,21 @@ This reads `package.json` and installs Hardhat and the toolbox.
 ```
 Buy_sell_simulation/
 ├── contracts/
-│   ├── BuySellTraceability.sol     # marketplace logic (register / list / cancel / buy)
-│   ├── HashChainLedger.sol         # abstract hash-linked ledger (append + verify)
-│   ├── interfaces/
-│   │   ├── ITraceabilityLedger.sol # ledger types, events, errors and read API
-│   │   └── IBuySellTraceability.sol# marketplace types, events, errors and API
-│   └── test/
-│       └── EtherRejecter.sol       # test helper: a seller that refuses ETH
-├── scripts/
-│   ├── simulate.js                 # runs a 4-party supply chain and prints the trail
-│   └── deploy.js                   # deploys to a chosen network
-├── test/
-│   ├── BuySellTraceability.test.js # core behaviour, ledger and tamper tests
-│   ├── bulkReads.test.js           # getRecords / getProducts / headHash
-│   ├── inspection.test.js          # inspectRecord / auditRange
-│   └── helpers/tamper.js           # rewrites stored records (local network only)
-├── hardhat.config.js               # compiler version and plugins
-├── package.json                    # dependencies and npm scripts
-├── .gitignore
-└── README.md                       # this file
+│   ├── BuySellTraceability.sol     # marketplace logic (register / list / buy / escrow / revoke)
+│   ├── HashChainLedger.sol         # abstract hash-linked ledger (append + verify + audit)
+│   ├── interfaces/                 # types, events, errors and the read API
+│   └── test/                       # test helpers: a seller that refuses ETH, a re-entering withdrawer
+├── scripts/                        # simulate, deploy, seed, export ABI / fixtures, lab scenarios
+├── test/                           # contract tests (Hardhat + Mocha + Chai)
+├── packages/shared/                # types, hash recipe, verification engine, error explainer,
+│                                   #   storage layout and the API schemas (zod) used by backend and frontend
+├── backend/                        # Fastify + SQLite: indexer, transaction lifecycle, REST + WebSocket, tamper lab
+├── frontend/                       # React + Vite + Tailwind: the Ledger Lab web app
+├── e2e/                            # Playwright tests against a real node, backend and browser
+├── docs/                           # ROADMAP.md, DESIGN_TOKENS.md, MANUAL_TESTING.md, openapi.json
+├── .github/workflows/ci.yml        # the checks that run on every push
+├── hardhat.config.js
+└── package.json                    # npm workspaces and scripts
 ```
 
 `artifacts/`, `cache/` and `node_modules/` are generated folders. You can delete them and regenerate them at any time.
@@ -140,7 +140,11 @@ Buy_sell_simulation/
 |---|---|
 | `npm install` | Install dependencies (once) |
 | `npm run compile` | Compile the contract (`npx hardhat compile`) |
-| `npm test` | Run all 25 tests |
+| `npm test` | Run the contract tests (90) |
+| `npm run test:all` | Contract, shared and backend tests |
+| `npm run dev` | Start everything for the visual lab (see [section 15](#15-the-visual-lab)) |
+| `npm run test:e2e` | Browser tests against a real stack |
+| `npm run coverage` | Contract coverage |
 | `npm run simulate` | Run the full buy/sell scenario and print the traceability trail |
 | `npm run node` | Start a persistent local blockchain on `http://127.0.0.1:8545` |
 | `npm run deploy` | Deploy to that local node (needs `npm run node` running in another terminal) |
@@ -514,7 +518,9 @@ npm test
 | Pagination | Windowed reads, last page clamped, empty page past the end, huge `limit` doesn't overflow |
 | `verifyRange` | Intact sub-ranges (including a mid-chain start and an empty range), tampering found only inside the checked range, invalid ranges rejected |
 
-Expected result: `25 passing`.
+Expected result: `90 passing`.
+
+The other layers have their own suites (see [section 15.7](#157-testing)).
 
 Optional extras provided by the toolbox:
 
@@ -589,6 +595,12 @@ Stop the node with `Ctrl+C`. Restarting it resets the chain.
 | `npm run deploy` fails with a connection error | Start the node first with `npm run node` in another terminal |
 | Port 8545 already in use | Stop the other process: `lsof -i :8545`, then `kill <PID>` |
 | `npm audit` reports vulnerabilities | They come from dev tooling in Hardhat's dependency tree. Nothing here is deployed to production, so they can be ignored for this simulation |
+| Failed transactions throw an error instead of showing up as failed | The node must be started with `DEV_NODE=1` (`npm run dev:node` does this). Without it Hardhat refuses to mine reverting transactions, so there is nothing to show |
+| MetaMask says the nonce is too high or a transaction never confirms after restarting the node | The chain restarted but MetaMask remembers the old one. MetaMask → Settings → Advanced → *Clear activity tab data* |
+| The page says wrong network | Switch MetaMask to "Hardhat Local" (chain id 31337, `http://127.0.0.1:8545`) |
+| The page says the contract is missing after a restart | A restarted node starts empty. Run `npm run dev:deploy` and `npm run dev:seed`; the page recovers on its own |
+| The backend refuses to start with an `node:sqlite` error | It needs a recent Node (24 or newer); check `node -v` |
+| The page says "Backend offline: read-only view" | Start the backend (`npm run dev:backend`). Reading the chain and checking it in the browser keep working without it |
 | Strange stale-build errors | `npm run clean && npm run compile` |
 | `allowScripts` warnings during `npm install` | Harmless. They concern optional native builds of `keccak` and `secp256k1`, which fall back to pure JavaScript |
 
@@ -599,6 +611,108 @@ Stop the node with `Ctrl+C`. Restarting it resets the chain.
 - Add **roles** (Manufacturer, Distributor, Retailer) with OpenZeppelin `AccessControl`.
 - Add **product metadata** (batch number, location, an IPFS hash of a certificate).
 - Add a **`transferTo(id, newOwner)`** for non-sale hand-offs such as shipping to a warehouse.
-- Build a small **web front-end** (React + ethers.js) that shows the trail as a timeline.
+- ~~Build a small web front-end that shows the trail as a timeline.~~ Done: see [15. The visual lab](#15-the-visual-lab).
+- ~~Pull payments for sales.~~ Done: the escrow flow pays through `withdraw()`.
 - Deploy to a public **testnet** (Sepolia) using a faucet and an RPC provider such as Alchemy or Infura.
 - Replace the linear `verifyLedger()` loop with **Merkle-tree** checkpoints so verification scales.
+
+---
+
+## 15. The visual lab
+
+A web app on top of the same contract, made for learning: every transaction can be followed from the form to the ledger, and the chain can be broken on purpose to see how that is noticed.
+
+### 15.1 Architecture
+
+```
+ browser (React)  ──REST + WebSocket──▶  backend (Fastify)  ──JSON-RPC──▶  Hardhat node
+   │   │                                   │  indexer → SQLite                  ▲
+   │   └── reads the node directly         │  transaction lifecycle             │
+   │       when the backend is down        │  tamper lab (dev node only)        │
+   └── signs transactions itself (demo accounts or MetaMask) ───────────────────┘
+```
+
+- The **backend never signs for users**. It reads the chain, follows each transaction from pending to verified, and runs the lab (tampering, mining control, scenarios). Its history lives in SQLite and can always be rebuilt from the node.
+- The **frontend** signs with built-in demo accounts or MetaMask, and can read the node directly, so a read-only view still works if the backend is stopped.
+- **Shared code** (`packages/shared`) holds the hash recipe and verification engine used by the contract tests, the backend and the browser, so all three always agree on what "intact" means.
+
+### 15.2 Running it
+
+```bash
+npm install
+npm run dev          # node, deploy, seed, backend and web app together
+```
+
+Open http://127.0.0.1:5173. To run the pieces separately: `npm run dev:node`, `npm run dev:deploy`, `npm run dev:seed`, `npm run dev:backend`, `npm run dev:web`.
+
+Backend settings are environment variables (all optional): `RPC_URL`, `PORT` (4000), `HOST` (127.0.0.1), `DB_PATH`, `DEPLOYMENT_PATH`, `POLL_MS`, `CORS_ORIGINS`, `LAB_GRACE_MS`, `LOG_LEVEL`.
+
+### 15.3 Demo accounts vs MetaMask
+
+Use **Act as** in the top bar.
+
+- **Demo accounts** (Manufacturer, Distributor, Retailer, Customer, Outsider) are the node's pre-funded test accounts. Transactions are signed in the page, with no extension and no prompts, which makes experiments quick.
+- **MetaMask** signs with your own wallet on the local network (the page offers to add "Hardhat Local", chain id 31337). Use it to see what a real signing flow looks like, including rejecting a request. The checklist in [`docs/MANUAL_TESTING.md`](docs/MANUAL_TESTING.md) covers it.
+
+### 15.4 A tour of the pages
+
+| Page | What you do there |
+|---|---|
+| **Explorer** | The ledger as a chain of blocks. Hover or focus a block to see its record, the transaction behind it and each integrity check with the reason. Filter by product, follow one product's timeline, see escrow and pull payments. |
+| **Playground** | One workspace: choose a role and an action, see a prediction of what the contract will say, send it, and watch the transaction pipeline (draft → simulated → signed → pending → mined → recorded → verified) next to the chain, the mempool and the activity feed. Switch to **Step** mode to hold transactions until you press **Mine block**. |
+| **Storage** | Where a record lives: its eight storage slots, how the packed slot is laid out, what writing it cost, and three independent ways to read it back. |
+| **Tamper Lab** | Four attack levels from changing one field to rewriting the whole tail, a prediction before each run, and a table of which check noticed (contract, event log, your browser). Every attack can be undone. Only available on the local dev node. |
+| **Learn** | Nine short lessons and a story replay (a laptop travels from manufacturer to customer in nine real transactions). The side panel explains what is happening in plain words; terms in the text have hover definitions. |
+
+Screenshots and animated captures are not included in the repository; run the app to see the pages.
+
+### 15.5 API overview
+
+The backend serves a JSON API and a WebSocket (`/ws`) that pushes changes as they happen. The full contract is in [`docs/openapi.json`](docs/openapi.json) (OpenAPI 3.1, generated from the same zod schemas the code validates with: `npm run export:openapi`). Groups: session and health, records and products, transactions and blocks, verification, storage, and `/api/lab/*` (tamper, undo, mining mode, scenarios), which refuses to run unless the node is a local dev node.
+
+### 15.6 Escrow and the three ways to take something back
+
+A buyer can `reserve` a product, paying into escrow. The product is locked, and the money is held by the contract rather than paid to the seller. Then one of three things happens, and each one is recorded:
+
+1. The **seller confirms** (`confirmSale`): ownership transfers and the seller can `withdraw` the payment (a pull payment).
+2. The **seller rejects** (`rejectReservation`): the buyer's payment is returned to their withdrawable balance and the product is unlocked.
+3. The **buyer cancels**, or **anyone revokes after the reservation expires**: same outcome, a *Revoked* record.
+
+The lessons "three ways to take something back" and "push vs pull payments" walk through these with real transactions, and the Playground can try each of them.
+
+### 15.7 Testing
+
+| Layer | Command | What it covers |
+|---|---|---|
+| Contracts | `npm test`, `npm run coverage` | 90 tests; escrow, ledger, tampering, events |
+| Shared | `npm test -w @dpp/shared` | hash recipe parity with the contract, verification, error explanation, storage layout |
+| Backend | `npm test -w @dpp/backend` | indexer, lifecycle, API, lab, reorgs, restarts (real Hardhat nodes) |
+| Frontend | `npm test -w @dpp/frontend` | components, stores and the lessons played by scripted learners |
+| End to end | `npm run test:e2e` | a real browser against a real node, backend and web server: the main flows, accessibility (axe, both themes), phone width, a 1,200-record ledger |
+
+`npm run test:e2e` needs the browser once: `npm run install:browsers -w @dpp/e2e`. Continuous integration (`.github/workflows/ci.yml`) runs all of this on every push.
+
+---
+
+## 16. Optional: a public testnet
+
+The contract and the indexer are not tied to the local node. For Sepolia you need an RPC URL and a funded deployer key. Copy `.env.example` to `.env` (git-ignored) and fill it in:
+
+```
+SEPOLIA_RPC_URL=https://...
+DEPLOYER_PRIVATE_KEY=0x...
+```
+
+```bash
+WRITE_DEPLOYMENT=1 npx hardhat run scripts/deploy.js --network sepolia
+RPC_URL=$SEPOLIA_RPC_URL npm run dev:backend
+npm run dev:web
+```
+
+What changes away from the local node:
+
+- The **lab is switched off**: the backend refuses it unless the node is the local dev chain (31337) and the API is bound to a loopback address. The Tamper Lab page explains why, and the mining controls are replaced by a note.
+- **Tracing**: most hosted RPCs do not offer `debug_traceTransaction`. The backend notices and explains a failed transaction by re-running the call at the parent block instead, which is close but not exact when earlier transactions in the same block changed the state. Storage-write costs are not available without tracing.
+- Blocks take seconds, so a transaction really does wait in the mempool; use a demo-account-free setup (MetaMask on Sepolia) since the demo accounts have no funds there.
+
+Never put a key that holds real funds in a project you share.
