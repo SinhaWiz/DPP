@@ -72,7 +72,7 @@ describe("indexer: sessions, blocks and transactions", () => {
 
   it("publishes block and transaction messages", async () => {
     const seen: string[] = [];
-    h.bus.subscribe((m) => m.type !== "indexer.status" && seen.push(m.type));
+    h.bus.subscribe((m) => ["block.new", "tx.mined", "tx.failed"].includes(m.type) && seen.push(m.type));
     await h.call(0, "registerProduct", "Phone");
     await h.callFailing(4, "listForSale", 2, eth("1"));
     await h.indexer.syncOnce();

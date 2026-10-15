@@ -284,6 +284,22 @@ export class Repo {
       this.db.prepare("select * from events where name = ? and block_number >= ? order by block_number, log_index").all(name, fromBlock) as SqlRow[]
     ).map((r) => this.eventFrom(r));
   }
+  /** `RecordAppended` events whose ledger index is in [from, to], keyed by that index. */
+  appendedEventsByIndex(from: number, to: number): Map<number, EventRow> {
+    const rows = this.db
+      .prepare(
+        `select * from events where name = 'RecordAppended'
+           and cast(json_extract(args_json, '$.index') as integer) between ? and ?
+         order by block_number, log_index`,
+      )
+      .all(from, to) as SqlRow[];
+    const out = new Map<number, EventRow>();
+    for (const r of rows) {
+      const e = this.eventFrom(r);
+      out.set(Number(e.args.index), e); // a later event for the same index (after a re-run) wins
+    }
+    return out;
+  }
   eventsInBlocks(from: number, to: number): EventRow[] {
     return (this.db.prepare("select * from events where block_number between ? and ? order by block_number, log_index").all(from, to) as SqlRow[]).map((r) => this.eventFrom(r));
   }

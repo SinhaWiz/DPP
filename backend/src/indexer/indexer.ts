@@ -1,10 +1,12 @@
 import type { Deployment } from "@dpp/shared";
 import type { Bus } from "../bus";
 import type { Rpc } from "../chain/rpc";
-import type { Repo, TxRow } from "../db/repo";
+import type { RecordRow, Repo, TxRow } from "../db/repo";
 import type { Logger } from "../logger";
 import { type RawBlock, type RawReceipt, toBig, toHexQuantity, toNumber } from "./rawTypes";
+import { LedgerReader } from "./ledgerReader";
 import { decodeCall, decodeLog, makeDecoder, sameAddress, type Decoder } from "./txDecoder";
+import type { VerificationService } from "../verification";
 
 export type IndexerState = "waiting-for-node" | "waiting-for-deploy" | "syncing" | "live" | "stopped";
 
@@ -16,6 +18,8 @@ export interface IndexerDeps {
   /** Returns the current deployment file, or null when none exists yet. Called on every pass. */
   getDeployment: () => Deployment | null;
   pollMs?: number;
+  /** Re-verifies the ledger after each pass; optional so the indexer can be used on its own. */
+  verification?: VerificationService;
   /** Trace successful market transactions for the storage-write view (6.5). */
   traceStorage?: boolean;
 }
@@ -39,6 +43,8 @@ export interface IndexerStatus {
   message: string | null;
 }
 
+const LEDGER_PAGE = 50;
+
 const NO_REPORT: Omit<SyncReport, "state"> = { fromBlock: null, toBlock: null, blocks: 0, txs: 0, events: 0, reset: false };
 
 /**
@@ -55,6 +61,12 @@ export class Indexer {
   private timer: NodeJS.Timeout | null = null;
   private blockReceiptsSupported = true;
   private lastHead: number | null = null;
+  private reader: LedgerReader | null = null;
+  /** Product ids whose on-chain state must be re-read. */
+  private dirtyProducts = new Set<number>();
+  private allProductsDirty = true;
+  /** Number of records in the index before the latest sync (for incremental verification). */
+  private recordsBefore = 0;
 
   constructor(private readonly d: IndexerDeps) {}
 
@@ -167,7 +179,10 @@ export class Indexer {
     repo.setMeta("deployment_key", key);
     if (this.deployment?.contracts.market.address !== deployment.contracts.market.address || !this.decoder) {
       this.decoder = makeDecoder(deployment);
+      this.reader = new LedgerReader(rpc.provider, deployment);
+      this.allProductsDirty = true;
     }
+    if (reset) this.allProductsDirty = true;
     this.deployment = deployment;
 
     // 3. New blocks.
@@ -183,6 +198,9 @@ export class Indexer {
       if (!r) break; // chain moved under us; the next pass will sort it out
       blocks++; txs += r.txs; events += r.events;
     }
+
+    const appended = await this.syncLedger();
+    if (appended > 0 || reset) this.d.verification?.refresh(reset ? null : this.recordsBefore);
 
     this.setState("live");
     return { state: this.state, fromBlock: blocks ? first : null, toBlock: blocks ? first + blocks - 1 : null, blocks, txs, events, reset };
@@ -279,6 +297,10 @@ export class Indexer {
       for (const row of txRows) repo.upsertTx(row);
       for (const e of eventRows) repo.insertEvent(e);
     });
+    for (const e of eventRows) {
+      const id = e.args.productId;
+      if (id !== undefined) this.dirtyProducts.add(Number(id));
+    }
 
     bus.publish("block.new", { number: n, hash: block.hash, txCount: block.transactions.length, timestamp });
     for (const row of txRows) {
@@ -288,6 +310,85 @@ export class Indexer {
     }
     return { txs: txRows.length, events: eventRows.length };
   }
-}
 
-export { sameAddress };
+  // ───────────────────────── ledger and products ─────────────────────────
+
+  /**
+   * Copies new ledger records from contract storage into the index, pairs each with the
+   * `RecordAppended` event that created it, and refreshes the products that changed.
+   * Returns how many records were added.
+   */
+  private async syncLedger(): Promise<number> {
+    const { repo, bus } = this.d;
+    const reader = this.reader;
+    if (!reader) return 0;
+
+    const have = repo.recordCount();
+    this.recordsBefore = have;
+    const length = await reader.ledgerLength();
+
+    let added = 0;
+    for (let offset = have; offset < length; offset += LEDGER_PAGE) {
+      const page = await reader.records(offset, Math.min(LEDGER_PAGE, length - offset));
+      const events = repo.appendedEventsByIndex(offset, offset + page.length - 1);
+      const batch: { row: RecordRow; txHash: string | null }[] = [];
+      for (const r of page) {
+        const ev = events.get(Number(r.index));
+        batch.push({
+          txHash: ev?.txHash ?? null,
+          row: {
+            index: r.index, productId: r.productId, action: r.action, actor: r.actor, counterparty: r.counterparty,
+            price: r.price, timestamp: r.timestamp, prevHash: r.prevHash, hash: r.hash,
+            txHash: ev?.txHash ?? null, blockNumber: ev?.blockNumber ?? null,
+            eventProductId: ev ? BigInt(ev.args.productId!) : null,
+            eventAction: ev ? Number(ev.args.action) : null,
+            eventActor: ev?.args.actor ?? null,
+            eventPrevHash: ev?.args.prevHash ?? null,
+            eventHash: ev?.args.hash ?? null,
+          },
+        });
+      }
+      repo.transaction(() => batch.forEach((b) => repo.upsertRecord(b.row)));
+      for (const { row } of batch) {
+        this.dirtyProducts.add(Number(row.productId));
+        bus.publish("record.appended", {
+          index: row.index.toString(), productId: row.productId.toString(), action: row.action, actor: row.actor,
+          hash: row.hash, txHash: row.txHash, blockNumber: row.blockNumber,
+        });
+      }
+      added += page.length;
+    }
+
+    await this.syncProducts(reader);
+    return added;
+  }
+
+  private async syncProducts(reader: LedgerReader): Promise<void> {
+    const { repo } = this.d;
+    const block = repo.latestBlock()?.number ?? null;
+
+    let ids: number[];
+    if (this.allProductsDirty) {
+      const count = await reader.productCount();
+      ids = Array.from({ length: count }, (_, i) => i + 1);
+    } else {
+      ids = [...this.dirtyProducts].sort((a, b) => a - b);
+    }
+    this.dirtyProducts.clear();
+    this.allProductsDirty = false;
+
+    for (let i = 0; i < ids.length; i += 20) {
+      const chunk = ids.slice(i, i + 20);
+      const loaded = await Promise.all(chunk.map((id) => reader.product(id)));
+      repo.transaction(() => {
+        for (const { product, reservation } of loaded) {
+          repo.upsertProduct({
+            id: product.id, name: product.name, owner: product.owner, price: product.price,
+            reservedBy: reservation?.buyer ?? null, reservedAmount: reservation?.amount ?? null,
+            reservedExpires: reservation?.expiresAt ?? null, updatedBlock: block,
+          });
+        }
+      });
+    }
+  }
+}

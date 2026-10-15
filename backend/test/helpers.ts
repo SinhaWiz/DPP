@@ -6,6 +6,7 @@ import { createRpc, type Rpc } from "../src/chain/rpc";
 import { Repo } from "../src/db/repo";
 import { Indexer } from "../src/indexer/indexer";
 import { silentLogger } from "../src/logger";
+import { VerificationService } from "../src/verification";
 
 export interface Harness {
   node: DevNode;
@@ -15,6 +16,7 @@ export interface Harness {
   repo: Repo;
   bus: Bus;
   indexer: Indexer;
+  verification: VerificationService;
   /** Calls a market function as role `signer` (0 = Manufacturer … 4 = Outsider). */
   call: (signer: number, fn: string, ...args: unknown[]) => Promise<void>;
   /** Sends a call that is expected to revert, with an explicit gas limit so the node mines it. Returns the tx hash. */
@@ -30,8 +32,9 @@ export async function startHarness(opts: { traceStorage?: boolean } = {}): Promi
   const rpc = createRpc(node.url);
   const repo = Repo.open(":memory:");
   const bus = new Bus();
+  const verification = new VerificationService(repo, bus);
   const indexer = new Indexer({
-    rpc, repo, bus, log: silentLogger, getDeployment: () => deployment, pollMs: 50,
+    rpc, repo, bus, log: silentLogger, getDeployment: () => deployment, pollMs: 50, verification,
     traceStorage: opts.traceStorage ?? true,
   });
   const market = deployed.market;
@@ -40,7 +43,7 @@ export async function startHarness(opts: { traceStorage?: boolean } = {}): Promi
     (market.connect(deployed.signers[signer]!) as Contract).getFunction(fn)(...args, overrides);
 
   return {
-    node, deployed, deployment, rpc, repo, bus, indexer,
+    node, deployed, deployment, rpc, repo, bus, indexer, verification,
     call: async (signer, fn, ...args) => {
       const last = args[args.length - 1];
       const hasOverrides = typeof last === "object" && last !== null && !Array.isArray(last);
