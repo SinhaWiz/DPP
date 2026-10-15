@@ -7,7 +7,8 @@ import { defineConfig } from "vitest/config";
 
 /** Serves the latest deployment file at /deployment.json, so the browser can read the chain even without the backend. */
 function deploymentFile(): import("vite").Plugin {
-  const path = resolve(fileURLToPath(new URL(".", import.meta.url)), "../packages/shared/src/generated/deployment.json");
+  // DEPLOYMENT_PATH lets the end-to-end tests point at their own deployment instead of the developer's.
+  const path = process.env.DEPLOYMENT_PATH ?? resolve(fileURLToPath(new URL(".", import.meta.url)), "../packages/shared/src/generated/deployment.json");
   const serve = (_req: unknown, res: import("node:http").ServerResponse, next: () => void) => {
     if ((_req as { url?: string }).url?.split("?")[0] !== "/deployment.json") return next();
     if (!existsSync(path)) {

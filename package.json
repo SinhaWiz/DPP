@@ -19,7 +19,8 @@
     "export:abi": "hardhat run scripts/export-abi.js",
     "export:fixture": "hardhat run scripts/export-fixture.js",
     "export:openapi": "npm run export:openapi -w @dpp/shared",
-    "coverage": "hardhat coverage"
+    "coverage": "hardhat coverage",
+    "test:e2e": "npm test -w @dpp/e2e"
   },
   "keywords": [],
   "author": "",
@@ -34,6 +35,7 @@
   "workspaces": [
     "packages/*",
     "backend",
-    "frontend"
+    "frontend",
+    "e2e"
   ]
 }

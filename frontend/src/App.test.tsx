@@ -115,4 +115,14 @@ describe("theme", () => {
     await userEvent.click(screen.getByRole("button", { name: "Actions" })); // must not throw
     expect(screen.queryByRole("complementary", { name: "Actions" })).not.toBeInTheDocument();
   });
+
+  it("leaves the dock out of the Playground, which already shows the same views, but keeps it elsewhere", async () => {
+    const { unmount } = await renderAt("/playground");
+    expect(screen.getAllByRole("tab", { name: "Transaction pipeline" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Hide" })).not.toBeInTheDocument();
+    unmount();
+    await renderAt("/");
+    expect(screen.getAllByRole("tab", { name: "Transaction pipeline" })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Hide" })).toBeInTheDocument();
+  });
 });

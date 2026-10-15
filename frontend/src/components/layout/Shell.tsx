@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { useTheme } from "@/lib/useTheme";
 import { ActionPanel } from "@/components/actions/ActionPanel";
 import { LessonOverlay } from "@/components/learn/LessonOverlay";
@@ -15,9 +15,11 @@ import { TopBar } from "./TopBar";
 /** The page frame: top bar, a main area between two drawers, and the dock underneath. */
 export function Shell() {
   useTheme();
+  // The Playground shows the pipeline, mempool and activity itself; a second copy in the dock would only repeat it.
+  const hasOwnTxViews = useLocation().pathname.startsWith("/playground");
   return (
     <div className="flex h-full flex-col">
-      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-accent focus:px-3 focus:py-1.5 focus:text-white">
+      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-accent focus:px-3 focus:py-1.5 focus:text-on-solid">
         Skip to content
       </a>
       <TopBar status={<><LinkStatus /><MiningControl /><AccountSwitcher /></>} />
@@ -34,7 +36,7 @@ export function Shell() {
         </ExplainDrawer>
       </div>
       <LessonOverlay />
-      <Dock panels={{ pipeline: <TxPipeline />, mempool: <MempoolTray />, activity: <ActivityFeed /> }} />
+      {!hasOwnTxViews && <Dock panels={{ pipeline: <TxPipeline />, mempool: <MempoolTray />, activity: <ActivityFeed /> }} />}
     </div>
   );
 }

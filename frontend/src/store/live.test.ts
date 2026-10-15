@@ -53,6 +53,17 @@ describe("LiveController: loading", () => {
   });
 });
 
+describe("LiveController: concurrent refreshes", () => {
+  it("shares one round of requests between callers that ask at the same time", async () => {
+    const { live, api } = setup();
+    await Promise.all([live.refetchAll(), live.refetchAll(), live.refetchAll()]);
+    expect(api.session).toHaveBeenCalledTimes(1);
+    expect(api.products).toHaveBeenCalledTimes(1);
+    await live.refetchAll();                       // a later call starts a fresh round
+    expect(api.session).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("LiveController: reacting to messages", () => {
   it("appends only the new records when one is appended", async () => {
     const { live, api } = setup();
@@ -282,5 +293,22 @@ describe("LiveController: read-only fallback", () => {
     const before = live.state.epoch;
     await live.refetchAll();
     expect(live.state.epoch).toBeGreaterThan(before);
+  });
+});
+
+describe("ensureLiveController", () => {
+  it("creates one controller however many times it is asked (StrictMode runs initialisers twice)", async () => {
+    const { ensureLiveController, setLiveController } = await import("./live");
+    setLiveController(null);
+    let created = 0;
+    const make = () => {
+      created += 1;
+      return new LiveController({ api: fakeApi() as never, debounceMs: 0 });
+    };
+    const a = ensureLiveController(make);
+    const b = ensureLiveController(make);
+    expect(b).toBe(a);
+    expect(created).toBe(1);
+    setLiveController(null);
   });
 });

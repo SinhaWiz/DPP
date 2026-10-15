@@ -1,0 +1,14 @@
+{
+  "name": "@dpp/e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "End-to-end tests: a real browser against a real chain, backend and frontend",
+  "scripts": {
+    "test": "playwright test",
+    "install:browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.49.0"
+  }
+}

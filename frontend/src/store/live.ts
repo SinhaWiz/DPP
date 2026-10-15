@@ -78,6 +78,7 @@ export class LiveController {
   private running = false;
   private details = new Map<string, Promise<ApiRecordDetail>>();
   private directTimer: ReturnType<typeof setInterval> | null = null;
+  private inflightAll: Promise<void> | null = null;
 
   constructor(private readonly d: LiveDeps) {}
 
@@ -151,8 +152,10 @@ export class LiveController {
   // ───────────────────────── loading ─────────────────────────
 
   /** Reloads every collection. Used at start-up, after a reset or rewind, and when history was lost. */
-  async refetchAll(): Promise<void> {
-    await this.load(["session", "recordsFull", "products", "txs", "blocks", "verify", "balances"]);
+  refetchAll(): Promise<void> {
+    // Several things ask at once on start-up (the effect, the socket's hello); they can share one round of requests.
+    this.inflightAll ??= this.load(["session", "recordsFull", "products", "txs", "blocks", "verify", "balances"]).finally(() => { this.inflightAll = null; });
+    return this.inflightAll;
   }
 
   private async load(kinds: Kind[]): Promise<void> {
@@ -312,6 +315,16 @@ let instance: LiveController | null = null;
 export function setLiveController(c: LiveController | null): void {
   instance?.stop();
   instance = c;
+}
+
+/**
+ * Returns the app's controller, creating it on first use. Safe to call twice: React StrictMode runs
+ * `useState` initialisers twice and keeps only one result, so creating a controller per call would
+ * leave components reading from one instance while another is the one that was started.
+ */
+export function ensureLiveController(create: () => LiveController): LiveController {
+  instance ??= create();
+  return instance;
 }
 
 export function getLiveController(): LiveController {

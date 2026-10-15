@@ -3,11 +3,11 @@ import { createApi } from "@/api/client";
 import { fetchDeployment, loadDirect } from "@/lib/direct";
 import { defaultRpcUrl } from "@/web3/wallet";
 import { RolesProvider } from "@/lib/roles";
-import { setTxFlow } from "@/store/flowInstance";
+import { ensureTxFlow, setTxFlow } from "@/store/flowInstance";
 import { narrate } from "@/lib/narration";
 import { useNarration } from "@/store/narration";
 import { useTally } from "@/store/eventTally";
-import { LiveController, getLiveController, setLiveController, useLive } from "@/store/live";
+import { LiveController, ensureLiveController, getLiveController, setLiveController, useLive } from "@/store/live";
 import { TxFlow } from "@/store/txFlow";
 import { useWallet } from "@/store/wallet";
 import { MarketClient } from "@/web3/market";
@@ -46,8 +46,12 @@ function createFlow(live: LiveController): TxFlow {
   return flow;
 }
 
-/** Turns the live message stream into explanations for the side panel. */
+const narrating = new WeakSet<LiveController>();
+
+/** Turns the live message stream into explanations for the side panel. Once per controller. */
 function startNarration(live: LiveController): void {
+  if (narrating.has(live)) return;
+  narrating.add(live);
   live.store.subscribe((state, prev) => {
     if (!state.lastMessage || state.lastMessage === prev.lastMessage) return;
     useTally.getState().record(state.lastMessage);
@@ -61,25 +65,31 @@ function startNarration(live: LiveController): void {
  * available everywhere. Pass `controller` / `flow` to run against fakes (tests).
  */
 export function AppProviders({ children, controller, flow }: { children: ReactNode; controller?: LiveController; flow?: TxFlow }) {
+  // Both initialisers below can run twice (React StrictMode), so they must create things at most once.
   const [live] = useState(() => {
-    const c = controller ?? new LiveController({
+    if (controller) {
+      setLiveController(controller);
+      return controller;
+    }
+    return ensureLiveController(() => new LiveController({
       api: createApi(),
       directPollMs: 2500,
       direct: async () => {
         const deployment = await fetchDeployment();
         return deployment ? loadDirect(defaultRpcUrl(), deployment) : null;
       },
-    });
-    setLiveController(c);
-    return c;
+    }));
   });
   useState(() => {
-    setTxFlow(flow ?? createFlow(getLiveController()));
+    if (flow) setTxFlow(flow);
+    else ensureTxFlow(() => createFlow(getLiveController()));
     startNarration(getLiveController());
     return null;
   });
   useEffect(() => {
     live.start();
+    // Development aid: inspect the live state from the browser console (and from the end-to-end tests).
+    if (import.meta.env.DEV) (window as unknown as { __ledgerLab?: unknown }).__ledgerLab = { live };
     return () => live.stop();
   }, [live]);
   return <Roles>{children}</Roles>;

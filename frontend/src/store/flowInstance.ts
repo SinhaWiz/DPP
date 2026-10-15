@@ -9,6 +9,12 @@ export function setTxFlow(flow: TxFlow | null): void {
   instance = flow;
 }
 
+/** Returns the app's transaction flow, creating it once (see ensureLiveController for why it must be idempotent). */
+export function ensureTxFlow(create: () => TxFlow): TxFlow {
+  instance ??= create();
+  return instance;
+}
+
 export function getTxFlow(): TxFlow {
   if (!instance) throw new Error("The transaction flow was not started");
   return instance;
