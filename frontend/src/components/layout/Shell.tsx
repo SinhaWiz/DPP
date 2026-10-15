@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { useTheme } from "@/lib/useTheme";
 import { ActionPanel } from "@/components/actions/ActionPanel";
+import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { ActivityFeed } from "@/components/pipeline/ActivityFeed";
 import { MempoolTray } from "@/components/pipeline/MempoolTray";
 import { TxPipeline } from "@/components/pipeline/TxPipeline";
@@ -27,7 +28,9 @@ export function Shell() {
         <main id="main" className="min-w-0 flex-1 overflow-auto p-4">
           <Outlet />
         </main>
-        <ExplainDrawer />
+        <ExplainDrawer>
+          <ExplainPanel />
+        </ExplainDrawer>
       </div>
       <Dock panels={{ pipeline: <TxPipeline />, mempool: <MempoolTray />, activity: <ActivityFeed /> }} />
     </div>

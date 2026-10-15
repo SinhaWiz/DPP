@@ -3,6 +3,7 @@ import { safeStorage } from "@/lib/safeStorage";
 
 export type ThemeChoice = "system" | "light" | "dark";
 export type DockTab = "pipeline" | "mempool" | "activity";
+export type ExplainMode = "beginner" | "detailed";
 
 const KEY = "ledger-lab.ui.v1";
 
@@ -12,9 +13,10 @@ interface Persisted {
   explainOpen: boolean;
   dockOpen: boolean;
   dockTab: DockTab;
+  explainMode: ExplainMode;
 }
 
-const DEFAULTS: Persisted = { theme: "system", actionsOpen: true, explainOpen: true, dockOpen: true, dockTab: "pipeline" };
+const DEFAULTS: Persisted = { theme: "system", actionsOpen: true, explainOpen: true, dockOpen: true, dockTab: "pipeline", explainMode: "beginner" };
 
 function load(): Persisted {
   try {
@@ -27,6 +29,7 @@ function load(): Persisted {
       explainOpen: parsed.explainOpen ?? DEFAULTS.explainOpen,
       dockOpen: parsed.dockOpen ?? DEFAULTS.dockOpen,
       dockTab: ["pipeline", "mempool", "activity"].includes(parsed.dockTab as string) ? (parsed.dockTab as DockTab) : DEFAULTS.dockTab,
+      explainMode: parsed.explainMode === "detailed" ? "detailed" : "beginner",
     };
   } catch {
     return DEFAULTS;
@@ -39,14 +42,15 @@ interface UiState extends Persisted {
   toggleExplain(): void;
   toggleDock(): void;
   setDockTab(tab: DockTab): void;
+  setExplainMode(mode: ExplainMode): void;
   /** Test helper: back to defaults without touching storage. */
   reset(): void;
 }
 
 export const useUi = create<UiState>((set, get) => {
   const save = () => {
-    const { theme, actionsOpen, explainOpen, dockOpen, dockTab } = get();
-    safeStorage.set(KEY, JSON.stringify({ theme, actionsOpen, explainOpen, dockOpen, dockTab }));
+    const { theme, actionsOpen, explainOpen, dockOpen, dockTab, explainMode } = get();
+    safeStorage.set(KEY, JSON.stringify({ theme, actionsOpen, explainOpen, dockOpen, dockTab, explainMode }));
   };
   const update = (patch: Partial<Persisted>) => {
     set(patch);
@@ -59,6 +63,7 @@ export const useUi = create<UiState>((set, get) => {
     toggleExplain: () => update({ explainOpen: !get().explainOpen }),
     toggleDock: () => update({ dockOpen: !get().dockOpen }),
     setDockTab: (dockTab) => update({ dockTab, dockOpen: true }),
+    setExplainMode: (explainMode) => update({ explainMode }),
     reset: () => set(DEFAULTS),
   };
 });

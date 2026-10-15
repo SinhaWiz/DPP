@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createApi } from "@/api/client";
 import { RolesProvider } from "@/lib/roles";
 import { setTxFlow } from "@/store/flowInstance";
+import { narrate } from "@/lib/narration";
+import { useNarration } from "@/store/narration";
 import { LiveController, getLiveController, setLiveController, useLive } from "@/store/live";
 import { TxFlow } from "@/store/txFlow";
 import { useWallet } from "@/store/wallet";
@@ -41,6 +43,15 @@ function createFlow(live: LiveController): TxFlow {
   return flow;
 }
 
+/** Turns the live message stream into explanations for the side panel. */
+function startNarration(live: LiveController): void {
+  live.store.subscribe((state, prev) => {
+    if (!state.lastMessage || state.lastMessage === prev.lastMessage) return;
+    const note = narrate(state.lastMessage, { findTx: (hash) => live.state.txs.find((t) => t.hash.toLowerCase() === hash.toLowerCase()) });
+    if (note) useNarration.getState().push(note);
+  });
+}
+
 /**
  * Starts the live data layer and the transaction flow for the whole app, and makes role names
  * available everywhere. Pass `controller` / `flow` to run against fakes (tests).
@@ -53,6 +64,7 @@ export function AppProviders({ children, controller, flow }: { children: ReactNo
   });
   useState(() => {
     setTxFlow(flow ?? createFlow(getLiveController()));
+    startNarration(getLiveController());
     return null;
   });
   useEffect(() => {

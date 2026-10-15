@@ -89,7 +89,8 @@ describe("notices", () => {
   it("announces a rewind with the blocks involved", async () => {
     const s = await mount();
     act(() => s.controller.apply(msg("chain.rewound", { fromBlock: 12, toBlock: 7 }, 3)));
-    expect(await screen.findByText(/from block 12 to block 7/)).toBeInTheDocument();
+    // the banner says it; the explanation panel says it too, so look only in the notices region
+    expect(await within(screen.getByLabelText("Notices")).findByText(/from block 12 to block 7/)).toBeInTheDocument();
   });
 
   it("warns loudly when the browser's own check disagrees with the server", async () => {
