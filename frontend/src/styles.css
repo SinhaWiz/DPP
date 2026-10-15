@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens (docs/DESIGN_TOKENS.md). Components use these names, never raw colours, so light and
+ * dark themes stay in one place. [data-theme] overrides the OS preference.
+ */
+:root {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --border: #d9dde3;
+  --text: #14171c;
+  --text-muted: #5a6270;
+  --accent: #2563eb;
+  --focus: #1d4ed8;
+
+  --action-registered: #2563eb;
+  --action-listed: #b45309;
+  --action-delisted: #5b6472;
+  --action-sold: #15803d;
+  --action-reserved: #7c3aed;
+  --action-revoked: #c2410c;
+
+  --status-intact: #15803d;
+  --status-data: #dc2626;
+  --status-link: #dc2626;
+  --status-anchor: #9333ea;
+  --status-pending: #b45309;
+  --status-neutral: #5b6472;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d1015;
+    --surface: #161a21;
+    --surface-2: #1d222b;
+    --border: #2d3440;
+    --text: #e8ebf0;
+    --text-muted: #9aa3b2;
+    --accent: #6ea0ff;
+    --focus: #93b6ff;
+
+    --action-registered: #6ea0ff;
+    --action-listed: #f5a524;
+    --action-delisted: #9aa3b2;
+    --action-sold: #4ade80;
+    --action-reserved: #b794f6;
+    --action-revoked: #fb923c;
+
+    --status-intact: #4ade80;
+    --status-data: #f87171;
+    --status-link: #f87171;
+    --status-anchor: #c084fc;
+    --status-pending: #f5a524;
+    --status-neutral: #9aa3b2;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1015;
+  --surface: #161a21;
+  --surface-2: #1d222b;
+  --border: #2d3440;
+  --text: #e8ebf0;
+  --text-muted: #9aa3b2;
+  --accent: #6ea0ff;
+  --focus: #93b6ff;
+
+  --action-registered: #6ea0ff;
+  --action-listed: #f5a524;
+  --action-delisted: #9aa3b2;
+  --action-sold: #4ade80;
+  --action-reserved: #b794f6;
+  --action-revoked: #fb923c;
+
+  --status-intact: #4ade80;
+  --status-data: #f87171;
+  --status-link: #f87171;
+  --status-anchor: #c084fc;
+  --status-pending: #f5a524;
+  --status-neutral: #9aa3b2;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--accent);
+
+  --color-registered: var(--action-registered);
+  --color-listed: var(--action-listed);
+  --color-delisted: var(--action-delisted);
+  --color-sold: var(--action-sold);
+  --color-reserved: var(--action-reserved);
+  --color-revoked: var(--action-revoked);
+
+  --color-intact: var(--status-intact);
+  --color-tampered: var(--status-data);
+  --color-anchor: var(--status-anchor);
+  --color-pending: var(--status-pending);
+  --color-neutral: var(--status-neutral);
+
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+}
+
+/* a pulsing outline for things that are waiting */
+@keyframes pulse-ring { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--status-pending) 55%, transparent); } 50% { box-shadow: 0 0 0 5px transparent; } }
+.pulse-ring { animation: pulse-ring 1.6s ease-in-out infinite; }
